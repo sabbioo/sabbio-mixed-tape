@@ -2,8 +2,8 @@ import { initStrudel } from '@strudel/web'
 import './style.css'
 import { initLiquidBackground } from './liquid.js'
 
-
-initLiquidBackground('liquid-canvas') // <-- AGGIUNGI QUESTA
+// Inizializza lo sfondo fluido melmoso
+initLiquidBackground('liquid-canvas')
 
 // ============================================================
 // HOOK WEBAUDIO: INTERCETTAZIONE DIRETTA DEL MASTER STRUDEL
@@ -36,14 +36,15 @@ const stopButton = document.querySelector('#stop')
 const output = document.querySelector('#output')
 const canvas = document.querySelector('#spectrum')
 const tapeWindow = document.querySelector('.tape-window')
+const sideBadge = document.querySelector('.side-badge')
 const ctx = canvas.getContext('2d')
 
-if (playButton) playButton.textContent = 'RIGENERA'
+if (playButton) playButton.innerHTML = '<span class="icon">↻</span> RIGENERA'
 
 let sysAudioContext
 
 // ============================================================
-// OSCILLOSCOPIO CRT IN TEMPO REALE
+// OSCILLOSCOPIO CRT REATTIVO
 // ============================================================
 
 function drawOscilloscope() {
@@ -55,7 +56,6 @@ function drawOscilloscope() {
   ctx.fillStyle = '#030a08'
   ctx.fillRect(0, 0, width, height)
 
-  // Griglia centrale verde attenuata
   ctx.strokeStyle = 'rgba(0, 255, 170, 0.12)'
   ctx.lineWidth = 1
   ctx.beginPath()
@@ -92,18 +92,14 @@ function drawOscilloscope() {
 
     for (let i = 0; i < bufferLength; i++) {
       const deviation = (dataArray[i] - 128) / 128.0
-      const amplified = deviation * 3.5 // Guadagno visivo per i micro-grani
+      const amplified = deviation * 3.5
       const y = height / 2 + amplified * (height / 2)
 
-      if (i === 0) {
-        ctx.moveTo(x, y)
-      } else {
-        ctx.lineTo(x, y)
-      }
+      if (i === 0) ctx.moveTo(x, y)
+      else ctx.lineTo(x, y)
       x += sliceWidth
     }
   } else {
-    // Fruscio analogico a nastro fermo
     const sliceWidth = width / 80
     let x = 0
     for (let i = 0; i <= 80; i++) {
@@ -122,7 +118,7 @@ function drawOscilloscope() {
 drawOscilloscope()
 
 // ============================================================
-// CONFIGURAZIONE
+// CONFIGURAZIONE TRIPARTITA DEL SISTEMA
 // ============================================================
 
 const CFG = {
@@ -135,16 +131,17 @@ const CFG = {
   epsilon: 0.01,
   gamma: 0.45,
 
-  f1: { numEv: 100, grani: 1, amp: 0.25 },
-  f2: { numEv: 100, grani: 48, amp: 0.15 },
-  f3: { numEv: 100, grani: 24, amp: 0.10 },
+  // Distribuzione proporzionata delle 3 fasi (~100 secondi totali)
+  f1: { numEv: 25, grani: 48,  amp: 0.28 },
+  f2: { numEv: 35, grani: 128, amp: 0.14 },
+  f3: { numEv: 55, grani: 24,  amp: 0.10 },
 
-  compositionCps: 1.10,
+  compositionCps: 1.15,
 
   drone: {
     enabled: true,
     stretch: 32,
-    gain: 0.60,
+    gain: 0.70,
     cutoffMin: 65,
     cutoffMax: 180,
     panDepth: 0.18
@@ -155,15 +152,20 @@ const DATASET_URL =
   'https://raw.githubusercontent.com/' +
   'tidalcycles/Dirt-Samples/main/strudel.json'
 
-const FAMIGLIE = [
-  'crow',
-  'wind',
-  'metal',
-  'insect',
-  'birds',
-  'fire',
-  'breath'
+const NUM_FAMIGLIE_ATTIVE = 7
+
+const POOL_FAMIGLIE = [
+  'crow', 'birds', 'insect', 'breath', 'wind', 'fire', 'bubble',
+  'lighter', 'pebbles', 'industrial', 'metal', 'can', 'glasstap', 'coins', 'print',
+  'clak', 'tink', 'glitch', 'diphone', 'speechless',
+  'juno', 'sitar', 'tabla', 'bottle',
+  'space', 'padlong', 'seawolf', 'feelfx'
 ]
+
+function estraiFamiglie(pool, quantita) {
+  const mescolato = [...pool].sort(() => Math.random() - 0.5)
+  return mescolato.slice(0, quantita)
+}
 
 const yieldBrowser = () =>
   new Promise(resolve => requestAnimationFrame(resolve))
@@ -179,7 +181,45 @@ function gaussian(mu, sigma) {
 }
 
 // ============================================================
-// FFT
+// DEFINIZIONE STATI TIMBRICI
+// ============================================================
+
+function definizioneStato(famiglia) {
+  switch (famiglia) {
+    case 'crow':       return { dur: [0.50, 0.15], rate: [1.00, 0.18], atkRatio: [0.25, 0.08], rq: [0.20, 0.40], wait: [0.45, 0.25] }
+    case 'birds':      return { dur: [0.65, 0.20], rate: [1.15, 0.25], atkRatio: [0.22, 0.08], rq: [0.16, 0.35], wait: [0.40, 0.20] }
+    case 'insect':     return { dur: [0.22, 0.08], rate: [1.40, 0.40], atkRatio: [0.40, 0.15], rq: [0.25, 0.60], wait: [0.16, 0.08] }
+    case 'breath':     return { dur: [1.60, 0.45], rate: [0.65, 0.12], atkRatio: [0.35, 0.08], rq: [0.14, 0.30], wait: [0.85, 0.30] }
+    case 'wind':       return { dur: [1.50, 0.40], rate: [0.70, 0.15], atkRatio: [0.35, 0.10], rq: [0.15, 0.35], wait: [0.80, 0.35] }
+    case 'fire':       return { dur: [0.75, 0.25], rate: [0.85, 0.15], atkRatio: [0.28, 0.10], rq: [0.22, 0.40], wait: [0.45, 0.20] }
+    case 'bubble':     return { dur: [0.15, 0.05], rate: [1.35, 0.30], atkRatio: [0.10, 0.04], rq: [0.28, 0.55], wait: [0.10, 0.05] }
+    case 'lighter':    return { dur: [0.14, 0.04], rate: [1.10, 0.25], atkRatio: [0.08, 0.03], rq: [0.25, 0.55], wait: [0.12, 0.05] }
+    case 'pebbles':    return { dur: [0.38, 0.12], rate: [1.00, 0.20], atkRatio: [0.20, 0.06], rq: [0.22, 0.45], wait: [0.25, 0.12] }
+    case 'industrial': return { dur: [0.55, 0.18], rate: [0.75, 0.20], atkRatio: [0.15, 0.05], rq: [0.18, 0.40], wait: [0.35, 0.15] }
+    case 'metal':      return { dur: [0.60, 0.20], rate: [1.15, 0.25], atkRatio: [0.20, 0.08], rq: [0.20, 0.45], wait: [0.35, 0.20] }
+    case 'can':        return { dur: [0.32, 0.10], rate: [1.10, 0.20], atkRatio: [0.14, 0.05], rq: [0.18, 0.40], wait: [0.20, 0.10] }
+    case 'glasstap':   return { dur: [0.40, 0.12], rate: [1.25, 0.22], atkRatio: [0.08, 0.03], rq: [0.08, 0.20], wait: [0.30, 0.15] }
+    case 'coins':      return { dur: [0.18, 0.06], rate: [1.45, 0.35], atkRatio: [0.10, 0.04], rq: [0.12, 0.30], wait: [0.14, 0.06] }
+    case 'print':      return { dur: [0.28, 0.09], rate: [0.95, 0.18], atkRatio: [0.15, 0.05], rq: [0.15, 0.35], wait: [0.20, 0.08] }
+    case 'clak':       return { dur: [0.12, 0.04], rate: [1.10, 0.20], atkRatio: [0.06, 0.02], rq: [0.30, 0.65], wait: [0.10, 0.04] }
+    case 'tink':       return { dur: [0.20, 0.06], rate: [1.35, 0.25], atkRatio: [0.08, 0.03], rq: [0.08, 0.22], wait: [0.18, 0.08] }
+    case 'glitch':     return { dur: [0.10, 0.03], rate: [1.60, 0.45], atkRatio: [0.05, 0.02], rq: [0.05, 0.18], wait: [0.08, 0.04] }
+    case 'diphone':    return { dur: [0.45, 0.14], rate: [0.90, 0.15], atkRatio: [0.25, 0.08], rq: [0.10, 0.28], wait: [0.35, 0.15] }
+    case 'speechless': return { dur: [0.25, 0.08], rate: [1.05, 0.20], atkRatio: [0.12, 0.04], rq: [0.16, 0.36], wait: [0.22, 0.10] }
+    case 'juno':       return { dur: [1.80, 0.45], rate: [0.75, 0.12], atkRatio: [0.28, 0.07], rq: [0.08, 0.20], wait: [0.90, 0.30] }
+    case 'sitar':      return { dur: [0.70, 0.22], rate: [1.00, 0.18], atkRatio: [0.15, 0.05], rq: [0.10, 0.25], wait: [0.50, 0.20] }
+    case 'tabla':      return { dur: [0.45, 0.15], rate: [0.85, 0.16], atkRatio: [0.12, 0.04], rq: [0.12, 0.30], wait: [0.30, 0.12] }
+    case 'bottle':     return { dur: [0.80, 0.25], rate: [1.00, 0.12], atkRatio: [0.18, 0.06], rq: [0.06, 0.16], wait: [0.55, 0.20] }
+    case 'space':      return { dur: [2.20, 0.50], rate: [0.55, 0.12], atkRatio: [0.20, 0.06], rq: [0.08, 0.22], wait: [1.20, 0.40] }
+    case 'padlong':    return { dur: [2.50, 0.60], rate: [0.60, 0.10], atkRatio: [0.30, 0.08], rq: [0.06, 0.18], wait: [1.30, 0.45] }
+    case 'seawolf':    return { dur: [1.20, 0.35], rate: [0.70, 0.18], atkRatio: [0.18, 0.05], rq: [0.10, 0.26], wait: [0.75, 0.25] }
+    case 'feelfx':     return { dur: [0.65, 0.22], rate: [1.10, 0.30], atkRatio: [0.16, 0.05], rq: [0.14, 0.35], wait: [0.40, 0.18] }
+    default:           return { dur: [1.00, 0.30], rate: [1.00, 0.20], atkRatio: [0.30, 0.10], rq: [0.20, 0.40], wait: [0.50, 0.20] }
+  }
+}
+
+// ============================================================
+// MATEMATICA SPETTRALE & FFT
 // ============================================================
 
 function fftReale(x) {
@@ -190,12 +230,8 @@ function fftReale(x) {
 
   for (let i = 1; i < N; i++) {
     let bit = N >> 1
-    while (j & bit) {
-      j ^= bit
-      bit >>= 1
-    }
+    while (j & bit) { j ^= bit; bit >>= 1 }
     j ^= bit
-
     if (i < j) {
       const tmpRe = re[i]; re[i] = re[j]; re[j] = tmpRe
       const tmpIm = im[i]; im[i] = im[j]; im[j] = tmpIm
@@ -207,36 +243,24 @@ function fftReale(x) {
     const wr0 = Math.cos(angle)
     const wi0 = Math.sin(angle)
     const half = len >> 1
-
     for (let i = 0; i < N; i += len) {
       let wr = 1, wi = 0
-
       for (let j = 0; j < half; j++) {
         const u = i + j
         const v = u + half
         const vr = re[v] * wr - im[v] * wi
         const vi = re[v] * wi + im[v] * wr
         const ur = re[u], ui = im[u]
-
-        re[u] = ur + vr
-        im[u] = ui + vi
-        re[v] = ur - vr
-        im[v] = ui - vi
-
+        re[u] = ur + vr; im[u] = ui + vi
+        re[v] = ur - vr; im[v] = ui - vi
         const nextWr = wr * wr0 - wi * wi0
         const nextWi = wr * wi0 + wi * wr0
-        wr = nextWr
-        wi = nextWi
+        wr = nextWr; wi = nextWi
       }
     }
   }
-
   return { re, im }
 }
-
-// ============================================================
-// GRIGLIA SPETTRALE
-// ============================================================
 
 function costruisciGriglia(sampleRate) {
   const freqRichieste = []
@@ -245,25 +269,15 @@ function costruisciGriglia(sampleRate) {
     const freq = CFG.freqMin * Math.pow(CFG.freqMax / CFG.freqMin, t)
     freqRichieste.push(freq)
   }
-
   const setBin = new Set()
   for (const freq of freqRichieste) {
-    const bin = clipValue(
-      Math.round(freq * CFG.fftSize / sampleRate),
-      1,
-      CFG.fftSize / 2
-    )
+    const bin = clipValue(Math.round(freq * CFG.fftSize / sampleRate), 1, CFG.fftSize / 2)
     setBin.add(bin)
   }
-
   const binIndices = Array.from(setBin).sort((a, b) => a - b)
   const frequenze = binIndices.map(bin => bin * sampleRate / CFG.fftSize)
   return { binIndices, frequenze }
 }
-
-// ============================================================
-// ANALISI DI UNA FINESTRA
-// ============================================================
 
 function analizzaFinestra(buffer, startSec, binIndices) {
   const sampleRate = buffer.sampleRate
@@ -277,23 +291,14 @@ function analizzaFinestra(buffer, startSec, binIndices) {
     const hann = 0.5 - 0.5 * Math.cos(2 * Math.PI * i / (CFG.fftSize - 1))
     frame[i] = x * hann
   }
-
   const fft = fftReale(frame)
   return binIndices.map(bin => Math.hypot(fft.re[bin], fft.im[bin]))
 }
-
-// ============================================================
-// NORMALIZZAZIONE L1
-// ============================================================
 
 function normalizza(array) {
   const somma = array.reduce((a, b) => a + b, 0)
   return somma > 0 ? array.map(x => x / somma) : array.map(() => 0)
 }
-
-// ============================================================
-// F0
-// ============================================================
 
 function analizzaF0(buffer) {
   const griglia = costruisciGriglia(buffer.sampleRate)
@@ -317,10 +322,6 @@ function analizzaF0(buffer) {
   }
 }
 
-// ============================================================
-// RŮŽIČKA
-// ============================================================
-
 function ruzicka(a, b) {
   let sommaMin = 0, sommaMax = 0
   for (let i = 0; i < a.length; i++) {
@@ -329,10 +330,6 @@ function ruzicka(a, b) {
   }
   return sommaMax > 0 ? sommaMin / sommaMax : 0
 }
-
-// ============================================================
-// MATRICE DI TRANSIZIONE
-// ============================================================
 
 function costruisciMatrice(profili) {
   const P = []
@@ -373,25 +370,6 @@ function scegliMateriale(profiloStato, materiali) {
   return scegliPesato(indici, normalizza(pesi))
 }
 
-// ============================================================
-// PARAMETRI DEGLI STATI
-// ============================================================
-
-function definizioneStato(famiglia) {
-  switch (famiglia) {
-    case 'crow': return { dur: [0.50, 0.15], rate: [1.00, 0.18], atkRatio: [0.25, 0.08], rq: [0.20, 0.40], wait: [0.45, 0.25] }
-    case 'wind': return { dur: [1.50, 0.40], rate: [0.70, 0.15], atkRatio: [0.35, 0.10], rq: [0.15, 0.35], wait: [0.80, 0.35] }
-    case 'metal': return { dur: [0.60, 0.20], rate: [1.15, 0.25], atkRatio: [0.20, 0.08], rq: [0.20, 0.45], wait: [0.35, 0.20] }
-    case 'insect': return { dur: [0.25, 0.10], rate: [1.40, 0.40], atkRatio: [0.40, 0.15], rq: [0.25, 0.60], wait: [0.18, 0.10] }
-    case 'space': return { dur: [2.00, 0.50], rate: [0.60, 0.15], atkRatio: [0.20, 0.08], rq: [0.12, 0.30], wait: [1.00, 0.40] }
-    default: return { dur: [1.00, 0.30], rate: [1.00, 0.20], atkRatio: [0.30, 0.10], rq: [0.20, 0.40], wait: [0.50, 0.20] }
-  }
-}
-
-// ============================================================
-// MODELLO SPETTRALE DEL GRANO
-// ============================================================
-
 function profiloGrano(profiloMateriale, frequenze, centro, rate, rq) {
   const risultato = new Array(profiloMateriale.length).fill(0)
   const r = Math.max(0.1, Math.abs(rate))
@@ -406,7 +384,6 @@ function profiloGrano(profiloMateriale, frequenze, centro, rate, rq) {
     let t = clipValue((logF - logMin) / (logMax - logMin), 0, 1)
     const indice = Math.round(t * (frequenze.length - 1))
     const energia = profiloMateriale[indice]
-
     const numeratore = f * f - centro * centro
     const denominatore = f * centro * Q
     const filtro = 1 / Math.sqrt(1 + Math.pow(numeratore / Math.max(denominatore, 1e-9), 2))
@@ -416,11 +393,12 @@ function profiloGrano(profiloMateriale, frequenze, centro, rate, rq) {
 }
 
 // ============================================================
-// F1
+// SIMULAZIONI DELLE TRE FASI EVOLUTIVE
 // ============================================================
 
+// F1: Calcolo con supporto completo a CFG.f1.grani
 async function eseguiF1(materiali) {
-  output.textContent = 'F1: esplorazione spazio...'
+  output.textContent = 'F1'
   const N = materiali.length
   const L = materiali[0].profilo.length
   const profiliF1 = Array.from({ length: N }, () => Array(L).fill(0))
@@ -429,35 +407,35 @@ async function eseguiF1(materiali) {
 
   for (let iter = 0; iter < CFG.f1.numEv; iter++) {
     const definizione = definizioneStato(materiali[stato].famiglia)
-    const indiceMateriale = Math.floor(Math.random() * N)
-    const materiale = materiali[indiceMateriale]
-    const indiceBanda = Math.floor(Math.random() * materiale.frequenze.length)
-    const centro = materiale.frequenze[indiceBanda]
+    const cloud = []
 
-    const durata = clipValue(gaussian(definizione.dur[0], definizione.dur[1]), 0.08, 3.5)
-    const rate = clipValue(gaussian(definizione.rate[0], definizione.rate[1]), 0.2, 2.5)
-    const rq = rand(definizione.rq[0], definizione.rq[1])
-    const grano = profiloGrano(materiale.profilo, materiale.frequenze, centro, rate, rq)
+    for (let g = 0; g < CFG.f1.grani; g++) {
+      const indiceMateriale = Math.floor(Math.random() * N)
+      const materiale = materiali[indiceMateriale]
+      const indiceBanda = Math.floor(Math.random() * materiale.frequenze.length)
+      const centro = materiale.frequenze[indiceBanda]
 
-    for (let k = 0; k < grano.length; k++) profiliF1[stato][k] += grano[k]
-    eventi.push({ stato, materiale: indiceMateriale, banda: centro, durata, rate, rq })
+      const durata = clipValue(gaussian(definizione.dur[0], definizione.dur[1]), 0.08, 2.5)
+      const rate = clipValue(gaussian(definizione.rate[0], definizione.rate[1]), 0.3, 2.2)
+      const rq = rand(definizione.rq[0], definizione.rq[1])
+      const pan = rand(-0.9, 0.9)
+      const grano = profiloGrano(materiale.profilo, materiale.frequenze, centro, rate, rq)
+
+      for (let k = 0; k < grano.length; k++) profiliF1[stato][k] += grano[k]
+      cloud.push({ stato, materiale: indiceMateriale, banda: centro, durata, rate, rq, pan })
+    }
+
+    eventi.push({ stato, grani: cloud })
     stato = Math.floor(Math.random() * N)
 
-    if (iter % 15 === 0) {
-      output.textContent = `F1: computazione ${iter + 1}/${CFG.f1.numEv}`
-      await yieldBrowser()
-    }
+    if (iter % 10 === 0) await yieldBrowser()
   }
-
   return { profili: profiliF1.map(normalizza), eventi }
 }
 
-// ============================================================
-// F2
-// ============================================================
-
+// F2: Clustering guidato da P1 con supporto a CFG.f2.grani
 async function eseguiF2(materiali, profiliF1, P1) {
-  output.textContent = 'F2: transizioni P1...'
+  output.textContent = 'F2'
   const N = materiali.length
   const L = materiali[0].profilo.length
   const profiliF2 = Array.from({ length: N }, () => Array(L).fill(0))
@@ -473,34 +451,28 @@ async function eseguiF2(materiali, profiliF1, P1) {
 
     for (let g = 0; g < CFG.f2.grani; g++) {
       const indiceBanda = scegliBanda(profiloStato)
-      const frequenza = materiali[0].frequenze[indiceBanda] * rand(0.98, 1.02)
-      const durata = clipValue(gaussian(definizione.dur[0], definizione.dur[1]), 0.08, 3.5)
+      const frequenza = materiali[0].frequenze[indiceBanda] * rand(0.97, 1.03)
+      const durata = clipValue(gaussian(definizione.dur[0], definizione.dur[1]), 0.08, 3.0)
       const rate = clipValue(gaussian(definizione.rate[0], definizione.rate[1]), 0.2, 2.5)
       const rq = rand(definizione.rq[0], definizione.rq[1])
+      const pan = rand(-0.7, 0.7)
       const grano = profiloGrano(materiale.profilo, materiale.frequenze, frequenza, rate, rq)
 
       for (let k = 0; k < grano.length; k++) profiliF2[stato][k] += grano[k]
-      cloud.push({ stato, materiale: indiceMateriale, frequenza, durata, rate, rq })
+      cloud.push({ stato, materiale: indiceMateriale, frequenza, durata, rate, rq, pan })
     }
 
     eventi.push({ stato, materiale: indiceMateriale, grani: cloud })
     stato = scegliPesato(P1[stato].map((_, i) => i), P1[stato])
 
-    if (iter % 15 === 0) {
-      output.textContent = `F2: clustering ${iter + 1}/${CFG.f2.numEv}`
-      await yieldBrowser()
-    }
+    if (iter % 10 === 0) await yieldBrowser()
   }
-
   return { profili: profiliF2.map(normalizza), eventi }
 }
 
-// ============================================================
-// F3
-// ============================================================
-
+// F3: Sintesi cesellata finale guidata da P2
 async function eseguiF3(materiali, profiliF2, P2) {
-  output.textContent = 'F3: traiettoria finale P2...'
+  output.textContent = 'F3'
   const clouds = []
   const catena = []
   let stato = 0
@@ -542,17 +514,97 @@ async function eseguiF3(materiali, profiliF2, P2) {
     catena.push({ stato, materiale: indiceMateriale })
     stato = scegliPesato(P2[stato].map((_, i) => i), P2[stato])
 
-    if (iter % 15 === 0) {
-      output.textContent = `F3: nuvole ${iter + 1}/${CFG.f3.numEv}`
-      await yieldBrowser()
-    }
+    if (iter % 10 === 0) await yieldBrowser()
   }
-
   return { clouds, catena }
 }
 
 // ============================================================
-// DATASET
+// GENERATORI AUDIO DELLE 3 FASI
+// ============================================================
+
+// FASE 1: Pulviscolo asincrono (grani sparsi nel tempo)
+function costruisciPatternF1(F1) {
+  const normGain = CFG.f1.amp / Math.sqrt(Math.max(1, CFG.f1.grani))
+  return F1.eventi.map(ev => {
+    const microGrani = ev.grani.map(g => {
+      const onset = Math.random() * 0.85 // Distribuisce nel tempo
+      return s('m' + g.materiale)
+        .speed(g.rate)
+        .attack(0.02)
+        .release(clipValue(g.durata * 0.6, 0.08, 0.40))
+        .bpf(g.banda)
+        .bpq(clipValue(1 / Math.max(g.rq, 0.05), 1, 12))
+        .pan((g.pan + 1) / 2)
+        .gain(normGain)
+        .room(0.20)
+        .late(onset) // <-- Onset asincrono
+    })
+    return stack(...microGrani)
+  })
+}
+
+// FASE 2: Tempesta densa (128 grani sovrapposti continuamente)
+function costruisciPatternF2(F2) {
+  const normGain = CFG.f2.amp / Math.sqrt(Math.max(1, CFG.f2.grani))
+  return F2.eventi.map(ev => {
+    const microGrani = ev.grani.map(g => {
+      const onset = Math.random() * 0.95 // Sparpagliamento continuo
+      return s('m' + g.materiale)
+        .speed(g.rate)
+        .attack(0.015)
+        .release(clipValue(g.durata * 0.45, 0.05, 0.35))
+        .bpf(g.frequenza)
+        .bpq(clipValue(1 / Math.max(g.rq, 0.05), 1, 10))
+        .pan((g.pan + 1) / 2)
+        .gain(normGain)
+        .room(0.35)
+        .late(onset) // <-- Sovrapposizione massiva
+    })
+    return stack(...microGrani)
+  })
+}
+
+// FASE 3: Sintesi cesellata (micro-slicing asincrono con code)
+function costruisciPatternF3(F3) {
+  return F3.clouds.map(cloud => {
+    const microGrani = cloud.grani.map(g => {
+      const onset = Math.random() * 0.90
+      return s('m' + g.materiale)
+        .slice(g.chop, String(g.sliceIndex))
+        .speed(g.rate)
+        .attack(g.attack)
+        .release(g.release + 0.15) // Coda prolungata per overlap
+        .bpf(g.frequenza)
+        .bpq(g.bpq)
+        .pan(g.pan)
+        .gain(g.gain)
+        .room(0.28)
+        .late(onset)
+    })
+    return stack(...microGrani)
+  })
+}
+
+function costruisciDrone(sistema) {
+  if (!CFG.drone.enabled || sistema.materiali.length === 0) return null
+  const indiceDrone = Math.floor(Math.random() * sistema.materiali.length)
+  const cutoff = sine.range(CFG.drone.cutoffMin, CFG.drone.cutoffMax).slow(32)
+  const pan = sine.range(-CFG.drone.panDepth, CFG.drone.panDepth).slow(40)
+
+  return s('m' + indiceDrone)
+    .stretch(CFG.drone.stretch)
+    .clip(CFG.drone.stretch)
+    .lpf(cutoff)
+    .pan(pan)
+    .gain(CFG.drone.gain)
+    .room(0.40)
+    .size(0.85)
+    .orbit(2)
+}
+
+// ============================================================
+// GESTIONE DATASET
 // ============================================================
 
 async function caricaDataset() {
@@ -599,48 +651,52 @@ async function analizzaMateriale(materiale) {
 }
 
 // ============================================================
-// PATTERN COMPOSITIVI
+// TIMER DELLE FASI DINAMICHE & STOP A DURATA FISSATA
 // ============================================================
 
-function costruisciPatternF3(F3) {
-  return F3.clouds.map(cloud => {
-    const grainPatterns = cloud.grani.map(grain => {
-      return s('m' + grain.materiale)
-        .slice(grain.chop, String(grain.sliceIndex))
-        .speed(grain.rate)
-        .clip(grain.clipFactor)
-        .attack(grain.attack)
-        .release(grain.release)
-        .bpf(grain.frequenza)
-        .bpq(grain.bpq)
-        .pan(grain.pan)
-        .gain(grain.gain)
-        .room(0.25)
-        .late(grain.onset)
-    })
-    return stack(...grainPatterns)
-  })
+let faseTimerInterval = null
+let stopTimeoutId = null
+
+function fermaComposizioneAutomatica() {
+  hush()
+  if (faseTimerInterval) clearInterval(faseTimerInterval)
+  if (stopTimeoutId) clearTimeout(stopTimeoutId)
+  tapeWindow?.classList.remove('is-playing')
+  if (sideBadge) sideBadge.textContent = 'SIDE ?'
+  output.textContent = 'FINE // TOCCA RIGENERA'
 }
 
-function costruisciDrone(sistema) {
-  if (!CFG.drone.enabled || sistema.materiali.length === 0) return null
-  const indiceDrone = Math.floor(Math.random() * sistema.materiali.length)
-  const cutoff = sine.range(CFG.drone.cutoffMin, CFG.drone.cutoffMax).slow(32)
-  const pan = sine.range(-CFG.drone.panDepth, CFG.drone.panDepth).slow(40)
+function avviaMonitoraggioFasi(durataF1Sec, durataF2Sec, durataTotaleSec) {
+  if (faseTimerInterval) clearInterval(faseTimerInterval)
+  if (stopTimeoutId) clearTimeout(stopTimeoutId)
 
-  return s('m' + indiceDrone)
-    .stretch(CFG.drone.stretch)
-    .clip(CFG.drone.stretch)
-    .lpf(cutoff)
-    .pan(pan)
-    .gain(CFG.drone.gain)
-    .room(0.40)
-    .size(0.85)
-    .orbit(2)
+  const startTime = Date.now()
+
+  faseTimerInterval = setInterval(() => {
+    const elapsedSec = (Date.now() - startTime) / 1000
+
+    if (elapsedSec < durataF1Sec) {
+      if (sideBadge) sideBadge.textContent = 'FASE 1'
+      output.textContent = `F1(${elapsedSec.toFixed(1)}s)`
+    } else if (elapsedSec < durataF1Sec + durataF2Sec) {
+      if (sideBadge) sideBadge.textContent = 'FASE 2'
+      output.textContent = `F2(${elapsedSec.toFixed(1)}s)`
+    } else if (elapsedSec < durataTotaleSec) {
+      if (sideBadge) sideBadge.textContent = 'F3'
+      output.textContent = `F3(${elapsedSec.toFixed(1)}s)`
+    } else {
+      fermaComposizioneAutomatica()
+    }
+  }, 250)
+
+  // Timer di precisione per lo stop del motore audio
+  stopTimeoutId = setTimeout(() => {
+    fermaComposizioneAutomatica()
+  }, durataTotaleSec * 1000)
 }
 
 // ============================================================
-// PLAYBACK
+// PLAYBACK CONCATENATO
 // ============================================================
 
 function riproduciComposizione() {
@@ -652,16 +708,16 @@ function riproduciComposizione() {
   const sistema = globalThis.sistemaCompleto
   samples(sistema.sampleMap)
 
-  const composizione = cat(...sistema.patterns)
+  const composizione = cat(...sistema.tuttiIPattern)
   const drone = costruisciDrone(sistema)
 
   hush()
 
   const layerComposizione = composizione
     .cps(CFG.compositionCps)
-    .gain(0.70)
-    .room(0.42)
-    .size(0.82)
+    .gain(0.72)
+    .room(0.38)
+    .size(0.80)
     .orbit(1)
 
   if (drone) {
@@ -670,19 +726,24 @@ function riproduciComposizione() {
     layerComposizione.play()
   }
 
-  // Bobine in movimento
   tapeWindow?.classList.add('is-playing')
-  output.textContent = `NOW PLAYING // (${CFG.compositionCps} CPS)`
+
+  // Calcolo delle durate temporali
+  const durF1 = CFG.f1.numEv / CFG.compositionCps
+  const durF2 = CFG.f2.numEv / CFG.compositionCps
+  const durTotale = (CFG.f1.numEv + CFG.f2.numEv + CFG.f3.numEv) / CFG.compositionCps
+
+  avviaMonitoraggioFasi(durF1, durF2, durTotale)
 }
 
 // ============================================================
-// ESECUZIONE SISTEMA
+// ESECUZIONE DEL SISTEMA COMPLETO
 // ============================================================
 
 async function eseguiSistema() {
   runButton.disabled = true
   playButton.disabled = true
-  output.textContent = 'CALIBRAZIONE NASTRO...'
+  output.textContent = 'CALIBRAZIONE TAPE...'
 
   try {
     const AudioContextClass = window.AudioContext || window.webkitAudioContext
@@ -699,7 +760,12 @@ async function eseguiSistema() {
     output.textContent = 'F0: download dataset...'
     const json = await caricaDataset()
     const base = json._base || 'https://raw.githubusercontent.com/tidalcycles/Dirt-Samples/main/'
-    const materialiScelti = FAMIGLIE.map(f => scegliFile(json, base, f))
+
+    const famiglieAttive = estraiFamiglie(POOL_FAMIGLIE, NUM_FAMIGLIE_ATTIVE)
+    output.textContent = `TIMBRI: [ ${famiglieAttive.join(' · ')} ]`
+    await yieldBrowser()
+
+    const materialiScelti = famiglieAttive.map(f => scegliFile(json, base, f))
 
     const materiali = []
     for (const matScelto of materialiScelti) {
@@ -721,18 +787,23 @@ async function eseguiSistema() {
       sampleMap['m' + i] = materiali[i].url
     }
 
-    const patterns = costruisciPatternF3(F3)
+    const patternF1 = costruisciPatternF1(F1)
+    const patternF2 = costruisciPatternF2(F2)
+    const patternF3 = costruisciPatternF3(F3)
+
+    const tuttiIPattern = [...patternF1, ...patternF2, ...patternF3]
 
     globalThis.sistemaCompleto = {
       materiali,
       profiliF0: materiali.map(m => m.profilo),
-      profiliF1: F1.profili,
-      P1,
-      profiliF2: F2.profili,
-      P2,
+      F1, P1,
+      F2, P2,
       F3,
       sampleMap,
-      patterns
+      patternF1,
+      patternF2,
+      patternF3,
+      tuttiIPattern
     }
 
     riproduciComposizione()
@@ -745,6 +816,8 @@ async function eseguiSistema() {
     runButton.disabled = false
     playButton.disabled = true
     tapeWindow?.classList.remove('is-playing')
+    if (faseTimerInterval) clearInterval(faseTimerInterval)
+    if (stopTimeoutId) clearTimeout(stopTimeoutId)
   }
 }
 
@@ -757,6 +830,9 @@ playButton.addEventListener('click', riproduciComposizione)
 stopButton.addEventListener('click', () => {
   hush()
   tapeWindow?.classList.remove('is-playing')
+  if (faseTimerInterval) clearInterval(faseTimerInterval)
+  if (stopTimeoutId) clearTimeout(stopTimeoutId)
+  if (sideBadge) sideBadge.textContent = 'SIDE ?'
   output.textContent = 'STOP // NASTRO FERMATO'
 })
 
