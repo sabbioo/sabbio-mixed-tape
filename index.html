@@ -2,41 +2,88 @@
 <html lang="it">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
-    <title>Sistema generativo</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Sabbio Mixed Tape</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
   </head>
 
   <body>
+    <!-- FLUIDO MELMOSO IN BACKGROUND -->
+    <canvas id="liquid-canvas"></canvas>
 
-    <h1>Sistema generativo</h1>
+    <div class="deck-container">
+      
+      <!-- CASSETTA SINGOLA -->
+      <div class="cassette">
+        
+        <!-- Viti vintage -->
+        <span class="screw top-left"></span>
+        <span class="screw top-right"></span>
+        <span class="screw bottom-left"></span>
+        <span class="screw bottom-right"></span>
 
-    <div>
-      <button id="run">
-        ESEGUI SISTEMA COMPLETO
-      </button>
+        <!-- Etichetta adesiva -->
+        <div class="tape-label">
+          <div class="label-header">
+            <span class="side-badge">SIDE ?</span>
+            <span class="format-badge">STEREO / CrO₂</span>
+            <span class="speed-badge">1.10 CPS</span>
+          </div>
 
-      <button id="play">
-        ASCOLTA F3
-      </button>
+          <div class="title-section">
+            <h1 class="tape-title">SABBIO MIXED TAPE</h1>
+            <p class="tape-subtitle">WHAAAAAAAAAAAAAHHHHHHHHH</p>
+          </div>
 
-      <button id="stop">
-        STOP
-      </button>
+          <!-- Finestra centrale: bobine dentate + oscilloscopio -->
+          <div class="tape-window">
+            <div class="reel-hole left-hole">
+              <div class="sprocket"></div>
+            </div>
+
+            <div class="crt-screen">
+              <canvas id="spectrum" width="1000" height="350"></canvas>
+              <div class="crt-scanline"></div>
+              <div class="screen-label">wave</div>
+            </div>
+
+            <div class="reel-hole right-hole">
+              <div class="sprocket"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Terminale di stato -->
+        <div class="terminal-tray">
+          <div class="terminal-status-dot"></div>
+          <pre id="output">SYSTEM READY // TOCCA 'PLAY' PER GENERARE IL NASTRO.</pre>
+        </div>
+
+        <!-- Pulsanti meccanici deck -->
+        <div class="deck-controls">
+          <button id="run" class="btn btn-primary">
+            <span class="icon">▶</span> PLAY</button>
+          
+          <button id="play" class="btn btn-secondary">
+            <span class="icon">↻</span> RIGENERA
+          </button>
+
+          <button id="stop" class="btn btn-danger">
+            <span class="icon">■</span> STOP
+          </button>
+        </div>
+
+        <div class="tape-footer">
+          <span>HIGH BIAS 70µs EQ</span>
+          <span>AUTONOMOUS SYSTEM</span>
+        </div>
+
+      </div>
+
     </div>
 
-    <pre id="output"></pre>
-
-    <canvas
-      id="spectrum"
-      width="1000"
-      height="350">
-    </canvas>
-
-    <script
-      type="module"
-      src="/src/main.js">
-    </script>
-
+    <script type="module" src="/src/main.js"></script>
   </body>
 </html>
