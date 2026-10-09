@@ -2,16 +2,8 @@ import { initStrudel, getAudioContext } from '@strudel/web'
 import './style.css'
 import { initLiquidBackground } from './liquid.js'
 
-// Inizializza lo sfondo fluido melmoso
-
-// Inizializza lo sfondo waterfall collegato a motore audio e lato cassetta
-initLiquidBackground('liquid-canvas', {
-  getAnalyser: () => analyserNode,
-  getSide: () => currentSide
-})
-
 // ============================================================
-// HOOK WEBAUDIO: INTERCETTAZIONE DIRETTA DEL MASTER STRUDEL
+// IL VERO INIZIO 
 // ============================================================
 
 let analyserNode = null
@@ -94,11 +86,11 @@ function generaNomeWav() {
   const m = moduli[Math.floor(Math.random() * moduli.length)]
   const t = tag[Math.floor(Math.random() * tag.length)]
   const hex = Math.floor(Math.random() * 0xffff).toString(16).toUpperCase().padStart(4, '0')
-  return `${m}_${t}_0x${hex}.wav`
+  return `${m}_${t}.wav`
 }
 
 // ============================================================
-// OSCILLOSCOPIO CRT REATTIVO
+// OSCILLOSCOPIO 
 // ============================================================
 
 function drawOscilloscope() {
@@ -172,7 +164,7 @@ function drawOscilloscope() {
 drawOscilloscope()
 
 // ============================================================
-// TONALITÀ E SCALE PER IL LATO B (INVISIBILI A SCHERMO)
+// TONALITÀ E SCALE 
 // ============================================================
 
 const RADICI = ['C', 'D', 'Eb', 'F', 'G', 'A', 'Bb']
@@ -182,7 +174,7 @@ function estraiTonalita() {
 }
 
 // ============================================================
-// MOTORE BATTERIA SINTETICA ANALOGICA (ZERO RETE, 100% AFFIDABILE)
+// another one bites the dust 
 // ============================================================
 
 function creaBatteria(kPat, snPat, hhPat, percPat = "~") {
@@ -213,7 +205,7 @@ function creaBatteria(kPat, snPat, hhPat, percPat = "~") {
 }
 
 // ============================================================
-// 6 GENERI MUSICALI LATO B CON SCELTA CASUALE
+// GeneriCirca
 // ============================================================
 
 const GENERI_LATO_B = [
@@ -225,33 +217,55 @@ const GENERI_LATO_B = [
     badge: 'TYPE II / CrO₂',
     scaleCompatibili: ['dorian', 'minor'],
     creaPattern: (root, scaleName) => {
-      const drums = creaBatteria(
-        "<[c1 ~] [~ c1] [c1 ~] [~ c1]>",
-        "<~ [c2 ~] ~ [c2 c2?]>",
-        "<c4*16>",
-        "<~ [d5 ~] ~ [d5 d5]>"
-      )
+      const variante = Math.random() < 0.5
 
-      const bass = n("<[0 0 12 7] [0 12 10 12] [0 0 12 7] [10 12 7 5]>*2")
-        .scale(`${root}1:${scaleName}`)
-        .s("sawtooth")
-        .decay(0.14).sustain(0.05)
-        .lpf(sine.range(400, 2400).slow(4))
-        .lpq(8)
-        .gain(0.85)
-
-      const stabs = n("<~ [0,3,7] ~ [0,3,7] [~ 0,3,7] ~ [0,3,7] ~>")
-        .scale(`${root}4:${scaleName}`)
-        .s("square")
-        .decay(0.14).sustain(0)
-        .lpf(2600)
-        .gain(0.5)
-
-      return stack(drums, bass, stabs)
+      if (variante) {
+        const drums = creaBatteria(
+          "<[c1 ~] [~ c1] [c1 ~] [~ c1]>",
+          "<~ [c2 ~] ~ [c2 c2?]>",
+          "<c4*16>",
+          "<~ [d3 ~] ~ [d3 d3]>"
+        )
+        const bass = n("<[0 0 12 7] [0 12 10 12] [0 0 12 7] [10 12 7 5]>*2")
+          .scale(`${root}1:${scaleName}`)
+          .s("sawtooth")
+          .decay(0.14).sustain(0.05)
+          .lpf(sine.range(350, 1800).slow(4))
+          .lpq(7)
+          .gain(0.85)
+        const stabs = n("<~ [0,3,7] ~ [0,3,7] [~ 0,3,7] ~ [0,3,7] ~>")
+          .scale(`${root}2:${scaleName}`)
+          .s("square")
+          .decay(0.16).sustain(0)
+          .lpf(1800)
+          .gain(0.55)
+        return stack(drums, bass, stabs)
+      } else {
+        const drums = creaBatteria(
+          "<c1 [~ c1] c1 [c1 ~]>",
+          "<~ c2 ~ c2>",
+          "<c4*16>",
+          "<c3 [~ c3] ~ [c3 ~]>"
+        )
+        const bass = n("<[0 12 10 0] [12 0 10 12] [0 10 12 0] [7 10 12 10]>*2")
+          .scale(`${root}1:${scaleName}`)
+          .s("sawtooth")
+          .decay(0.12).sustain(0.03)
+          .lpf(1600).lpq(8)
+          .gain(0.85)
+        const stabs = n("<[0,5,7] ~ [0,3,7] ~>")
+          .scale(`${root}2:${scaleName}`)
+          .s("sawtooth")
+          .decay(0.2)
+          .lpf(2000)
+          .gain(0.55)
+        return stack(drums, bass, stabs)
+      }
     }
   },
 
   // 2. BRAINDANCE / IDM
+  
   {
     id: 'idm',
     tempo: '142 BPM',
@@ -285,6 +299,7 @@ const GENERI_LATO_B = [
     }
   },
 
+
   // 3. LO-FI BOOM-BAP
   {
     id: 'lofi',
@@ -293,28 +308,49 @@ const GENERI_LATO_B = [
     badge: 'TYPE I / NORMAL',
     scaleCompatibili: ['minor', 'dorian'],
     creaPattern: (root, scaleName) => {
-      const drums = creaBatteria(
-        "<[c1 ~] ~ [~ c1] [c1? ~]>",
-        "<~ c2 ~ c2>",
-        "<[c4 c4]*2>",
-        "<~ ~ [c5 ~] ~>"
-      )
+      const variante = Math.random() < 0.5
 
-      const chords = n("<[0,3,7,10] [5,8,12,15] [3,7,10,14] [7,10,14,17]>")
-        .scale(`${root}3:${scaleName}`)
-        .s("sine")
-        .decay(0.85).sustain(0.2).release(0.4)
-        .lpf(1300)
-        .room(0.4)
-        .gain(0.6)
-
-      const bass = n("<0 5 3 7>")
-        .scale(`${root}1:${scaleName}`)
-        .s("triangle")
-        .lpf(260)
-        .gain(0.85)
-
-      return stack(drums, chords, bass)
+      if (variante) {
+        const drums = creaBatteria(
+          "<[c1 ~] ~ [~ c1] [c1? ~]>",
+          "<~ c2 ~ c2>",
+          "<[c4 c4]*2>",
+          "<~ ~ [c3 ~] ~>"
+        )
+        const chords = n("<[0,3,7,10] [5,8,12,15] [3,7,10,14] [7,10,14,17]>")
+          .scale(`${root}2:${scaleName}`)
+          .s("sine")
+          .decay(0.85).sustain(0.2).release(0.4)
+          .lpf(1100)
+          .room(0.4)
+          .gain(0.65)
+        const bass = n("<0 5 3 7>")
+          .scale(`${root}1:${scaleName}`)
+          .s("triangle")
+          .lpf(240)
+          .gain(0.85)
+        return stack(drums, chords, bass)
+      } else {
+        const drums = creaBatteria(
+          "<c1 ~ [~ c1] ~>",
+          "<~ c2 ~ c2>",
+          "<c4*4 [c4*2 c4]>",
+          "<[~ c3]*2>"
+        )
+        const chords = n("<[0,4,7,11] [2,5,9,12] [4,7,11,14] [0,3,7,10]>")
+          .scale(`${root}2:${scaleName}`)
+          .s("triangle")
+          .decay(0.7).sustain(0.15)
+          .lpf(950)
+          .room(0.45)
+          .gain(0.6)
+        const bass = n("<0 [0 2] 4 [2 0]>")
+          .scale(`${root}1:${scaleName}`)
+          .s("sine")
+          .decay(0.4)
+          .gain(0.9)
+        return stack(drums, chords, bass)
+      }
     }
   },
 
@@ -326,22 +362,39 @@ const GENERI_LATO_B = [
     badge: 'TYPE II / 70µs',
     scaleCompatibili: ['minor', 'phrygian'],
     creaPattern: (root, scaleName) => {
-      const drums = creaBatteria(
-        "<c1*4>",
-        "<~ c2 ~ c2>",
-        "<[~ c4]*4>",
-        "<~ c3*2 ~ c3>"
-      )
+      const variante = Math.random() < 0.5
 
-      const acid = n("<[0 0 12 3] [5 7 10 12] [3 5 7 10] [12 10 7 3]>")
-        .scale(`${root}1:${scaleName}`)
-        .s("sawtooth")
-        .lpf(sine.range(350, 3000).slow(8))
-        .lpq(9)
-        .decay(0.12)
-        .gain(0.78)
-
-      return stack(drums, acid)
+      if (variante) {
+        const drums = creaBatteria(
+          "<c1*4>",
+          "<~ c2 ~ c2>",
+          "<[~ c4]*4>",
+          "<~ c3*2 ~ c3>"
+        )
+        const acid = n("<[0 0 12 3] [5 7 10 12] [3 5 7 10] [12 10 7 3]>")
+          .scale(`${root}1:${scaleName}`)
+          .s("sawtooth")
+          .lpf(sine.range(280, 1600).slow(8))
+          .lpq(7)
+          .decay(0.12)
+          .gain(0.8)
+        return stack(drums, acid)
+      } else {
+        const drums = creaBatteria(
+          "<c1*4>",
+          "<~ [c2,c2?] ~ c2>",
+          "<c4*16>",
+          "<c3*8>"
+        )
+        const acid = n("<[0 3 0 5] [7 10 7 12] [10 7 5 3] [0 12 0 7]>")
+          .scale(`${root}1:${scaleName}`)
+          .s("sawtooth")
+          .lpf(sine.range(320, 1500).slow(4))
+          .lpq(8)
+          .decay(0.14)
+          .gain(0.82)
+        return stack(drums, acid)
+      }
     }
   },
 
@@ -353,27 +406,47 @@ const GENERI_LATO_B = [
     badge: 'METAL / 70µs',
     scaleCompatibili: ['minor', 'dorian'],
     creaPattern: (root, scaleName) => {
-      const drums = creaBatteria(
-        "<[c1 ~] ~ [~ c1] ~>",
-        "<~ c2 ~ [c2 c2]>",
-        "<c4*16>",
-        "<c3*4>"
-      )
+      const variante = Math.random() < 0.5
 
-      const sub = n("<[0 ~ 0 ~] [~ ~ 5 ~] [3 ~ ~ ~] [~ 7 ~ ~]>")
-        .scale(`${root}0:${scaleName}`)
-        .s("sine")
-        .decay(0.6).sustain(0.3)
-        .gain(0.95)
-
-      const pad = n("<[0,3,7] [5,8,12] [3,7,10] [2,5,9]>")
-        .scale(`${root}3:${scaleName}`)
-        .s("sawtooth")
-        .lpf(950)
-        .room(0.6)
-        .gain(0.42)
-
-      return stack(drums, sub, pad)
+      if (variante) {
+        const drums = creaBatteria(
+          "<[c1 ~] ~ [~ c1] ~>",
+          "<~ c2 ~ [c2 c2]>",
+          "<c4*8>",
+          "<c3*4>"
+        )
+        const sub = n("<[0 ~ 0 ~] [~ ~ 5 ~] [3 ~ ~ ~] [~ 7 ~ ~]>")
+          .scale(`${root}0:${scaleName}`)
+          .s("sine")
+          .decay(0.6).sustain(0.3)
+          .gain(0.95)
+        const pad = n("<[0,3,7] [5,8,12] [3,7,10] [2,5,9]>")
+          .scale(`${root}2:${scaleName}`)
+          .s("sawtooth")
+          .lpf(800)
+          .room(0.6)
+          .gain(0.48)
+        return stack(drums, sub, pad)
+      } else {
+        const drums = creaBatteria(
+          "<c1 ~ ~ [c1 c1]>",
+          "<~ c2 [~ c2] [c2*2 c2]>",
+          "<c4*2 c4*8>",
+          "<[~ c3]*4>"
+        )
+        const sub = n("<0 [0 0] [3 5] [7 0]>")
+          .scale(`${root}0:${scaleName}`)
+          .s("sine")
+          .decay(0.5).sustain(0.4)
+          .gain(0.95)
+        const pad = n("<[0,4,7] [2,5,9]>*2")
+          .scale(`${root}2:${scaleName}`)
+          .s("sawtooth")
+          .lpf(850)
+          .room(0.55)
+          .gain(0.5)
+        return stack(drums, sub, pad)
+      }
     }
   },
 
@@ -385,36 +458,321 @@ const GENERI_LATO_B = [
     badge: 'HIGH BIAS / CrO₂',
     scaleCompatibili: ['minor', 'dorian'],
     creaPattern: (root, scaleName) => {
-      const drums = creaBatteria(
-        "<c1*4>",
-        "<~ c2 ~ c2>",
-        "<c4*8>",
-        "<~ ~ c3 ~>"
-      )
+      const variante = Math.random() < 0.5
 
-      const dubChord = n("<[0,3,7,10] ~ ~ ~> [~ ~ [0,3,7,10] ~]")
-        .scale(`${root}3:${scaleName}`)
-        .s("sawtooth")
-        .decay(0.2)
-        .lpf(sine.range(500, 1600).slow(12))
-        .lpq(5)
-        .room(0.8)
-        .size(0.95)
-        .gain(0.65)
+      if (variante) {
+        const drums = creaBatteria(
+          "<c1*4>",
+          "<~ c2 ~ c2>",
+          "<c4*8>",
+          "<~ ~ c3 ~>"
+        )
+        const dubChord = n("<[0,3,7,10] ~ ~ ~> [~ ~ [0,3,7,10] ~]")
+          .scale(`${root}2:${scaleName}`)
+          .s("sawtooth")
+          .decay(0.25)
+          .lpf(sine.range(400, 1100).slow(12))
+          .lpq(5)
+          .room(0.75)
+          .size(0.9)
+          .gain(0.7)
+        const sub = n("<0 0 5 3>*2")
+          .scale(`${root}1:${scaleName}`)
+          .s("triangle")
+          .lpf(200)
+          .gain(0.85)
+        return stack(drums, dubChord, sub)
+      } else {
+        const drums = creaBatteria(
+          "<c1*4>",
+          "<~ [c2 ~] ~ [c2 ~]>",
+          "<[~ c4]*8>",
+          "<c3 [~ c3] ~ c3>"
+        )
+        const dubChord = n("<~ [0,3,7] ~ ~> <~ ~ [5,8,12] ~>")
+          .scale(`${root}2:${scaleName}`)
+          .s("sawtooth")
+          .decay(0.3)
+          .lpf(sine.range(350, 950).slow(8))
+          .lpq(6)
+          .room(0.8).size(0.95)
+          .gain(0.68)
+        const sub = n("<0 3 5 0>")
+          .scale(`${root}1:${scaleName}`)
+          .s("sine")
+          .decay(0.8)
+          .gain(0.9)
+        return stack(drums, dubChord, sub)
+      }
+    }
+  },
 
-      const sub = n("<0 0 5 3>*2")
-        .scale(`${root}1:${scaleName}`)
-        .s("triangle")
-        .lpf(220)
-        .gain(0.85)
+   // 8. UK GARAGE / 2-STEP
+  {
+    id: 'ukgarage',
+    tempo: '134 BPM',
+    cps: 1.12,
+    badge: 'TYPE II / 70µs',
+    scaleCompatibili: ['minor', 'dorian'],
+    creaPattern: (root, scaleName) => {
+      const variante = Math.random() < 0.5
 
-      return stack(drums, dubChord, sub)
+      if (variante) {
+        const drums = creaBatteria(
+          "<c1 ~ [~ c1] ~>",
+          "<~ c2 ~ c2>",
+          "<[c4 ~ c4 c4] [c4 c4 ~ c4]>",
+          "<~ c3 ~ ~>"
+        )
+        const bass = n("<[0 ~ 0 12] [~ 5 ~ 7] [~ 3 5 ~] [7 ~ 10 12]>")
+          .scale(`${root}1:${scaleName}`)
+          .s("sawtooth")
+          .decay(0.15).sustain(0.05)
+          .lpf(850)
+          .gain(0.85)
+        const stabs = n("<[0,3,7] ~ ~ [0,3,7]> <~ [5,8,12] ~ ~>")
+          .scale(`${root}2:${scaleName}`)
+          .s("triangle")
+          .decay(0.2)
+          .lpf(1600)
+          .room(0.35)
+          .gain(0.6)
+        return stack(drums, bass, stabs)
+      } else {
+        const drums = creaBatteria(
+          "<c1 ~ ~ [c1 ~]>",
+          "<~ c2 ~ c2>",
+          "<c4*16>",
+          "<~ ~ [~ c3] ~>"
+        )
+        const bass = n("<[0 12] ~ [5 7] [~ 3]>")
+          .scale(`${root}1:${scaleName}`)
+          .s("triangle")
+          .decay(0.2)
+          .lpf(550)
+          .gain(0.9)
+        const stabs = n("<~ [0,4,7,10] ~ [2,5,9,12]>")
+          .scale(`${root}2:${scaleName}`)
+          .s("square")
+          .decay(0.16)
+          .lpf(1500)
+          .gain(0.55)
+        return stack(drums, bass, stabs)
+      }
+    }
+  },
+
+  // 9. ACID HOUSE 1989
+  {
+    id: 'acidhouse',
+    tempo: '126 BPM',
+    cps: 1.05,
+    badge: 'TYPE I / NORMAL',
+    scaleCompatibili: ['minor', 'phrygian'],
+    creaPattern: (root, scaleName) => {
+      const variante = Math.random() < 0.5
+
+      if (variante) {
+        const drums = creaBatteria(
+          "<c1*4>",
+          "<~ c2 ~ c2>",
+          "<[~ c4]*4>",
+          "<[~ c3]*8>"
+        )
+        const acid = n("<[0 0 12 3] [0 7 10 12] [3 5 7 0] [12 10 7 5]>*2")
+          .scale(`${root}1:${scaleName}`)
+          .s("sawtooth")
+          .lpf(sine.range(280, 1600).slow(4))
+          .lpq(8)
+          .decay(0.12)
+          .gain(0.8)
+        return stack(drums, acid)
+      } else {
+        const drums = creaBatteria(
+          "<c1*4>",
+          "<~ [c2 c2?] ~ c2>",
+          "<[c4 c4?]*4>",
+          "<c3*4>"
+        )
+        const acid = n("<[0 12 0 3] [5 0 7 12] [10 12 7 5] [3 5 3 0]>*2")
+          .scale(`${root}1:${scaleName}`)
+          .s("sawtooth")
+          .lpf(sine.range(320, 1500).slow(6))
+          .lpq(8)
+          .decay(0.14)
+          .gain(0.8)
+        return stack(drums, acid)
+      }
+    }
+  },
+
+  // 10. INDUSTRIAL EBM
+  {
+    id: 'ebm',
+    tempo: '130 BPM',
+    cps: 1.08,
+    badge: 'METAL / 70µs',
+    scaleCompatibili: ['phrygian', 'minor'],
+    creaPattern: (root, scaleName) => {
+      const variante = Math.random() < 0.5
+
+      if (variante) {
+        const drums = creaBatteria(
+          "<c1*4>",
+          "<~ c2 ~ c2>",
+          "<c4*16>",
+          "<c3*8>"
+        )
+        const bass = n("<[0 0 12 0] [0 0 1 0] [0 0 12 0] [3 0 1 0]>*2")
+          .scale(`${root}1:${scaleName}`)
+          .s("sawtooth")
+          .decay(0.10).sustain(0.02)
+          .lpf(1300).lpq(5)
+          .gain(0.88)
+        const metal = n("<~ ~ [0 0] ~>")
+          .scale(`${root}2:${scaleName}`)
+          .s("square")
+          .decay(0.08)
+          .lpf(1800)
+          .gain(0.55)
+        return stack(drums, bass, metal)
+      } else {
+        const drums = creaBatteria(
+          "<c1*4>",
+          "<~ [c2,c3] ~ [c2,c3]>",
+          "<[~ c4]*8>",
+          "<c3*16>"
+        )
+        const bass = n("<[0 12] [0 12] [1 13] [0 12]>*2")
+          .scale(`${root}1:${scaleName}`)
+          .s("square")
+          .decay(0.12)
+          .lpf(1050)
+          .gain(0.85)
+        const metal = n("<[0 ~ 0 ~] ~ [2 ~ 3 ~] ~>")
+          .scale(`${root}2:${scaleName}`)
+          .s("sawtooth")
+          .decay(0.1)
+          .lpf(2000)
+          .gain(0.5)
+        return stack(drums, bass, metal)
+      }
+    }
+  },
+
+  // 11. TRIP-HOP / BRISTOL NOIR
+  {
+    id: 'triphop',
+    tempo: '78 BPM',
+    cps: 0.65,
+    badge: 'TYPE I / NORMAL',
+    scaleCompatibili: ['minor', 'dorian'],
+    creaPattern: (root, scaleName) => {
+      const variante = Math.random() < 0.5
+
+      if (variante) {
+        const drums = creaBatteria(
+          "<[c1 ~] ~ [c1 c1] ~>",
+          "<~ c2 ~ c2>",
+          "<[c4 c4]*2>",
+          "<~ c3 ~ ~>"
+        )
+        const chords = n("<[0,3,7] [0,3,6] [0,3,7] [2,5,8]>")
+          .scale(`${root}2:${scaleName}`)
+          .s("sawtooth")
+          .decay(0.9)
+          .lpf(750)
+          .room(0.6)
+          .gain(0.6)
+        const sub = n("<0 0 [0 3] 2>")
+          .scale(`${root}1:${scaleName}`)
+          .s("sine")
+          .decay(0.7)
+          .gain(0.9)
+        return stack(drums, chords, sub)
+      } else {
+        const drums = creaBatteria(
+          "<c1 ~ [~ c1] ~>",
+          "<~ c2 ~ [c2 c2?]>",
+          "<c4*8>",
+          "<[~ c3] ~ ~ ~>"
+        )
+        const chords = n("<[0,3,7,10] [4,7,11,14] [3,7,10,13] [2,5,8,12]>")
+          .scale(`${root}2:${scaleName}`)
+          .s("triangle")
+          .decay(0.8)
+          .lpf(850)
+          .room(0.5)
+          .gain(0.65)
+        const sub = n("<0 4 3 2>")
+          .scale(`${root}1:${scaleName}`)
+          .s("triangle")
+          .decay(0.6).lpf(280)
+          .gain(0.85)
+        return stack(drums, chords, sub)
+      }
+    }
+  },
+
+  // 12. MICROHOUSE / MINIMAL
+  {
+    id: 'microhouse',
+    tempo: '125 BPM',
+    cps: 1.04,
+    badge: 'TYPE II / CrO₂',
+    scaleCompatibili: ['dorian', 'minor'],
+    creaPattern: (root, scaleName) => {
+      const variante = Math.random() < 0.5
+
+      if (variante) {
+        const drums = creaBatteria(
+          "<c1 ~ [~ c1] ~>",
+          "<~ c2? ~ c2>",
+          "<[~ c4]*8>",
+          "<c3*8>"
+        )
+        const bass = n("<[0 ~ 0 3] [~ 5 ~ 7] [~ 0 3 ~] [5 ~ 7 12]>")
+          .scale(`${root}1:${scaleName}`)
+          .s("triangle")
+          .decay(0.15)
+          .lpf(380)
+          .gain(0.85)
+        const clicks = n("<[0 2] [3 5] [2 4] [0 2]>*4")
+          .scale(`${root}3:${scaleName}`)
+          .s("sine")
+          .decay(0.04)
+          .lpf(1100)
+          .room(0.3)
+          .gain(0.45)
+        return stack(drums, bass, clicks)
+      } else {
+        const drums = creaBatteria(
+          "<[c1 ~] c1 [~ c1] ~>",
+          "<~ [c2 ~] ~ [c2? ~]>",
+          "<c4*16>",
+          "<~ [c3 c3] ~ c3>"
+        )
+        const bass = n("<[0 0] [3 0] [5 7] [0 3]>*2")
+          .scale(`${root}1:${scaleName}`)
+          .s("sine")
+          .decay(0.18)
+          .lpf(440)
+          .gain(0.9)
+        const clicks = n("<[0 2] [4 5] [7 5] [4 0]>*2")
+          .scale(`${root}3:${scaleName}`)
+          .s("triangle")
+          .decay(0.05)
+          .lpf(1200)
+          .room(0.35)
+          .gain(0.5)
+        return stack(drums, bass, clicks)
+      }
     }
   }
 ]
 
 // ============================================================
-// CONFIGURAZIONE TRIPARTITA LATO A
+// Configurazione (WHAAAAAHHHHHH)
 // ============================================================
 
 const CFG = {
@@ -476,7 +834,7 @@ function gaussian(mu, sigma) {
 }
 
 // ============================================================
-// DEFINIZIONE STATI TIMBRICI LATO A
+// DEFINIZIONE STATI 
 // ============================================================
 
 function definizioneStato(famiglia) {
@@ -514,7 +872,7 @@ function definizioneStato(famiglia) {
 }
 
 // ============================================================
-// MATEMATICA SPETTRALE & FFT
+// Funzioni 
 // ============================================================
 
 function fftReale(x) {
@@ -688,7 +1046,7 @@ function profiloGrano(profiloMateriale, frequenze, centro, rate, rq) {
 }
 
 // ============================================================
-// SIMULAZIONI DELLE TRE FASI EVOLUTIVE LATO A
+// 3 fasi
 // ============================================================
 
 async function eseguiF1(materiali) {
@@ -812,7 +1170,7 @@ async function eseguiF3(materiali, profiliF2, P2) {
 }
 
 // ============================================================
-// GENERATORI AUDIO DELLE 3 FASI LATO A
+// sì
 // ============================================================
 
 function costruisciPatternF1(F1) {
@@ -893,7 +1251,7 @@ function costruisciDrone(sistema) {
 }
 
 // ============================================================
-// GESTIONE DATASET
+// DATA 
 // ============================================================
 
 async function caricaDataset() {
@@ -940,7 +1298,7 @@ async function analizzaMateriale(materiale) {
 }
 
 // ============================================================
-// MONITORAGGIO TEMPI E DURATE FISSE
+// che cosa faceva esattamente questa roba? booooooooohhhhhhh
 // ============================================================
 
 let faseTimerInterval = null
@@ -1005,7 +1363,7 @@ function avviaMonitoraggioLatoB(durTotaleSec) {
 }
 
 // ============================================================
-// PLAYBACK LATO A (MARKOVIANO)
+// mrkv
 // ============================================================
 
 async function riproduciLatoA() {
@@ -1014,7 +1372,6 @@ async function riproduciLatoA() {
     return
   }
 
-  // Risveglia il contesto audio di Strudel se sospeso
   const strudelCtx = getAudioContext()
   if (strudelCtx && strudelCtx.state === 'suspended') await strudelCtx.resume()
   if (sysAudioContext && sysAudioContext.state === 'suspended') await sysAudioContext.resume()
@@ -1022,7 +1379,6 @@ async function riproduciLatoA() {
 
   const sistema = globalThis.sistemaCompleto
 
-  // Registra ESCLUSIVAMENTE la mappa dei campioni del Lato A (senza sovrascrivere o 404)
   await samples(sistema.sampleMap)
 
   const composizione = cat(...sistema.tuttiIPattern)
@@ -1054,7 +1410,7 @@ async function riproduciLatoA() {
 }
 
 // ============================================================
-// PLAYBACK LATO B (GENERI NATIVI SENZA TONALITÀ VISIBILE)
+// B
 // ============================================================
 
 async function riproduciLatoB() {
@@ -1072,7 +1428,6 @@ async function riproduciLatoB() {
   hush()
   await new Promise(r => setTimeout(r, 20))
 
-  // Pattern musicale eseguito nella tonalità nascosta (Zero errori di scale)
   const pattern = genereBSelezionato.creaPattern(tonalitaAttuale, scalaAttuale)
     .cps(genereBSelezionato.cps)
     .gain(0.85)
@@ -1175,7 +1530,7 @@ async function eseguiSistema() {
 }
 
 // ============================================================
-// REGIA ROTAZIONE CASSETTA 3D (LATO A <-> B)
+// rotazione figa
 // ============================================================
 
 function giraCassetta() {
@@ -1190,7 +1545,6 @@ function giraCassetta() {
     if (currentSide === 'A') {
       currentSide = 'B'
 
-      // Estrae stile, tonalità segreta e nome file .wav hacker
       genereBSelezionato = GENERI_LATO_B[Math.floor(Math.random() * GENERI_LATO_B.length)]
       tonalitaAttuale = estraiTonalita()
       scalaAttuale = genereBSelezionato.scaleCompatibili[Math.floor(Math.random() * genereBSelezionato.scaleCompatibili.length)]
@@ -1224,7 +1578,7 @@ function giraCassetta() {
 }
 
 // ============================================================
-// EVENT LISTENERS DEL DECK
+// ----------------------------------------------------------------------
 // ============================================================
 
 runButton.addEventListener('click', () => {
@@ -1243,7 +1597,6 @@ playButton.addEventListener('click', () => {
   if (currentSide === 'A') {
     eseguiSistema()
   } else {
-    // Sul Lato B, 'RIGENERA' estrae un nuovo stile, una nuova tonalità e un nuovo dump alfanumerico .wav
     const altriGeneri = GENERI_LATO_B.filter(g => g.id !== genereBSelezionato?.id)
     genereBSelezionato = altriGeneri[Math.floor(Math.random() * altriGeneri.length)]
     tonalitaAttuale = estraiTonalita()
