@@ -1,4 +1,4 @@
-import { initStrudel } from '@strudel/web'
+import { initStrudel, getAudioContext } from '@strudel/web'
 import './style.css'
 import { initLiquidBackground } from './liquid.js'
 
@@ -33,15 +33,58 @@ initStrudel()
 const runButton = document.querySelector('#run')
 const playButton = document.querySelector('#play')
 const stopButton = document.querySelector('#stop')
+const flipButton = document.querySelector('#flip')
 const output = document.querySelector('#output')
 const canvas = document.querySelector('#spectrum')
+const cassetteEl = document.querySelector('.cassette')
 const tapeWindow = document.querySelector('.tape-window')
 const sideBadge = document.querySelector('.side-badge')
+const formatBadge = document.querySelector('.format-badge')
+const speedBadge = document.querySelector('.speed-badge')
+const tapeSubtitle = document.querySelector('.tape-subtitle')
 const ctx = canvas.getContext('2d')
 
 if (playButton) playButton.innerHTML = '<span class="icon">↻</span> RIGENERA'
 
 let sysAudioContext
+
+// Stato globale della cassetta
+let currentSide = 'A' // 'A' o 'B'
+let genereBSelezionato = null
+let tonalitaAttuale = 'C'
+let scalaAttuale = 'dorian'
+let nomeWavAttuale = '0x08048_raw_0x1A4F.wav'
+let durataLatoBSec = 75.0
+
+// ============================================================
+// NOMI
+// ============================================================
+
+function generaNomeWav() {
+  const moduli = [
+    '0x7FF0_MEMDUMP',
+    'COME_MAI_SE_POSSO_0x08048',
+    'SYS_IRQ07_0x9F4B',
+    'ELECTROSABBA_A0FE',
+    '0x_STREAM',
+    'BUFFER_0x2A7C_RAW',
+    'X86_REG_0x00FF82',
+    '_0x4B12',
+    '_0x03E8_CORE',
+    'SODEEPLY_0x',
+    '_0x5F2D',
+    'CAROLINA_REAPER_0x0B00',
+    'MMMMHHHHHHHH_0x1C8A',
+    'MUNE_NO_OKU_NI_ISTUITERU_MERODII_0xFE90',
+    'MEM_0x004000',
+    'FANCULO_MONETA'
+  ]
+  const tag = ['v1', 'v2', 'dbg', 'rel', 'dump', 'raw', 'hex', 'bin']
+  const m = moduli[Math.floor(Math.random() * moduli.length)]
+  const t = tag[Math.floor(Math.random() * tag.length)]
+  const hex = Math.floor(Math.random() * 0xffff).toString(16).toUpperCase().padStart(4, '0')
+  return `${m}_${t}_0x${hex}.wav`
+}
 
 // ============================================================
 // OSCILLOSCOPIO CRT REATTIVO
@@ -118,7 +161,249 @@ function drawOscilloscope() {
 drawOscilloscope()
 
 // ============================================================
-// CONFIGURAZIONE TRIPARTITA DEL SISTEMA
+// TONALITÀ E SCALE PER IL LATO B (INVISIBILI A SCHERMO)
+// ============================================================
+
+const RADICI = ['C', 'D', 'Eb', 'F', 'G', 'A', 'Bb']
+
+function estraiTonalita() {
+  return RADICI[Math.floor(Math.random() * RADICI.length)]
+}
+
+// ============================================================
+// MOTORE BATTERIA SINTETICA ANALOGICA (ZERO RETE, 100% AFFIDABILE)
+// ============================================================
+
+function creaBatteria(kPat, snPat, hhPat, percPat = "~") {
+  const kick = note(kPat).s("sine")
+    .decay(0.24).sustain(0)
+    .gain(1.4)
+
+  const snareNoise = note(snPat).s("white")
+    .decay(0.15).sustain(0)
+    .lpf(4200).hpf(700)
+    .gain(0.85)
+
+  const snareBody = note(snPat).s("triangle")
+    .decay(0.08).sustain(0)
+    .gain(0.7)
+
+  const hats = note(hhPat).s("white")
+    .decay(0.04).sustain(0)
+    .hpf(7000)
+    .gain(0.6)
+
+  const perc = note(percPat).s("square")
+    .decay(0.10).sustain(0)
+    .lpf(2600).hpf(600)
+    .gain(0.55)
+
+  return stack(kick, snareNoise, snareBody, hats, perc)
+}
+
+// ============================================================
+// 6 GENERI MUSICALI LATO B CON SCELTA CASUALE
+// ============================================================
+
+const GENERI_LATO_B = [
+  // 1. ELEKTROFUNK
+  {
+    id: 'elektrofunk',
+    tempo: '124 BPM',
+    cps: 1.03,
+    badge: 'TYPE II / CrO₂',
+    scaleCompatibili: ['dorian', 'minor'],
+    creaPattern: (root, scaleName) => {
+      const drums = creaBatteria(
+        "<[c1 ~] [~ c1] [c1 ~] [~ c1]>",
+        "<~ [c2 ~] ~ [c2 c2?]>",
+        "<c4*16>",
+        "<~ [d5 ~] ~ [d5 d5]>"
+      )
+
+      const bass = n("<[0 0 12 7] [0 12 10 12] [0 0 12 7] [10 12 7 5]>*2")
+        .scale(`${root}1:${scaleName}`)
+        .s("sawtooth")
+        .decay(0.14).sustain(0.05)
+        .lpf(sine.range(400, 2400).slow(4))
+        .lpq(8)
+        .gain(0.85)
+
+      const stabs = n("<~ [0,3,7] ~ [0,3,7] [~ 0,3,7] ~ [0,3,7] ~>")
+        .scale(`${root}4:${scaleName}`)
+        .s("square")
+        .decay(0.14).sustain(0)
+        .lpf(2600)
+        .gain(0.5)
+
+      return stack(drums, bass, stabs)
+    }
+  },
+
+  // 2. BRAINDANCE / IDM
+  {
+    id: 'idm',
+    tempo: '142 BPM',
+    cps: 1.18,
+    badge: 'HIGH BIAS / CrO₂',
+    scaleCompatibili: ['phrygian', 'dorian'],
+    creaPattern: (root, scaleName) => {
+      const drums = creaBatteria(
+        "<[c1 c1? ~ c1] [~ c1 ~ c1] [c1 ~ c1 ~] [~ c1 c1 ~]>",
+        "<~ c2 ~ [c2 c2*2]>",
+        "<c4*16 c4*24 c4*16 c4*32>",
+        "<~ ~ c3? ~>"
+      )
+
+      const bass = n("<[0 12] [3 7] [10 5] [12 10]>*2")
+        .scale(`${root}1:${scaleName}`)
+        .s("sawtooth")
+        .lpf(sine.range(300, 2600).slow(6))
+        .lpq(9)
+        .decay(0.16)
+        .gain(0.75)
+
+      const bleeps = n("<[0 2] [4 7] [9 11] [12 14]>*4")
+        .scale(`${root}4:${scaleName}`)
+        .s("triangle")
+        .decay(0.08)
+        .room(0.45)
+        .gain(0.45)
+
+      return stack(drums, bass, bleeps)
+    }
+  },
+
+  // 3. LO-FI BOOM-BAP
+  {
+    id: 'lofi',
+    tempo: '84 BPM',
+    cps: 0.70,
+    badge: 'TYPE I / NORMAL',
+    scaleCompatibili: ['minor', 'dorian'],
+    creaPattern: (root, scaleName) => {
+      const drums = creaBatteria(
+        "<[c1 ~] ~ [~ c1] [c1? ~]>",
+        "<~ c2 ~ c2>",
+        "<[c4 c4]*2>",
+        "<~ ~ [c5 ~] ~>"
+      )
+
+      const chords = n("<[0,3,7,10] [5,8,12,15] [3,7,10,14] [7,10,14,17]>")
+        .scale(`${root}3:${scaleName}`)
+        .s("sine")
+        .decay(0.85).sustain(0.2).release(0.4)
+        .lpf(1300)
+        .room(0.4)
+        .gain(0.6)
+
+      const bass = n("<0 5 3 7>")
+        .scale(`${root}1:${scaleName}`)
+        .s("triangle")
+        .lpf(260)
+        .gain(0.85)
+
+      return stack(drums, chords, bass)
+    }
+  },
+
+  // 4. MOTORIK TECHNO & ACID
+  {
+    id: 'techno',
+    tempo: '132 BPM',
+    cps: 1.10,
+    badge: 'TYPE II / 70µs',
+    scaleCompatibili: ['minor', 'phrygian'],
+    creaPattern: (root, scaleName) => {
+      const drums = creaBatteria(
+        "<c1*4>",
+        "<~ c2 ~ c2>",
+        "<[~ c4]*4>",
+        "<~ c3*2 ~ c3>"
+      )
+
+      const acid = n("<[0 0 12 3] [5 7 10 12] [3 5 7 10] [12 10 7 3]>")
+        .scale(`${root}1:${scaleName}`)
+        .s("sawtooth")
+        .lpf(sine.range(350, 3000).slow(8))
+        .lpq(9)
+        .decay(0.12)
+        .gain(0.78)
+
+      return stack(drums, acid)
+    }
+  },
+
+  // 5. DARK JUNGLE / D&B
+  {
+    id: 'jungle',
+    tempo: '164 BPM',
+    cps: 1.36,
+    badge: 'METAL / 70µs',
+    scaleCompatibili: ['minor', 'dorian'],
+    creaPattern: (root, scaleName) => {
+      const drums = creaBatteria(
+        "<[c1 ~] ~ [~ c1] ~>",
+        "<~ c2 ~ [c2 c2]>",
+        "<c4*16>",
+        "<c3*4>"
+      )
+
+      const sub = n("<[0 ~ 0 ~] [~ ~ 5 ~] [3 ~ ~ ~] [~ 7 ~ ~]>")
+        .scale(`${root}0:${scaleName}`)
+        .s("sine")
+        .decay(0.6).sustain(0.3)
+        .gain(0.95)
+
+      const pad = n("<[0,3,7] [5,8,12] [3,7,10] [2,5,9]>")
+        .scale(`${root}3:${scaleName}`)
+        .s("sawtooth")
+        .lpf(950)
+        .room(0.6)
+        .gain(0.42)
+
+      return stack(drums, sub, pad)
+    }
+  },
+
+  // 6. DUB TECHNO & SPACE
+  {
+    id: 'dub',
+    tempo: '116 BPM',
+    cps: 0.96,
+    badge: 'HIGH BIAS / CrO₂',
+    scaleCompatibili: ['minor', 'dorian'],
+    creaPattern: (root, scaleName) => {
+      const drums = creaBatteria(
+        "<c1*4>",
+        "<~ c2 ~ c2>",
+        "<c4*8>",
+        "<~ ~ c3 ~>"
+      )
+
+      const dubChord = n("<[0,3,7,10] ~ ~ ~> [~ ~ [0,3,7,10] ~]")
+        .scale(`${root}3:${scaleName}`)
+        .s("sawtooth")
+        .decay(0.2)
+        .lpf(sine.range(500, 1600).slow(12))
+        .lpq(5)
+        .room(0.8)
+        .size(0.95)
+        .gain(0.65)
+
+      const sub = n("<0 0 5 3>*2")
+        .scale(`${root}1:${scaleName}`)
+        .s("triangle")
+        .lpf(220)
+        .gain(0.85)
+
+      return stack(drums, dubChord, sub)
+    }
+  }
+]
+
+// ============================================================
+// CONFIGURAZIONE TRIPARTITA LATO A
 // ============================================================
 
 const CFG = {
@@ -131,7 +416,6 @@ const CFG = {
   epsilon: 0.01,
   gamma: 0.45,
 
-  // Distribuzione proporzionata delle 3 fasi (~100 secondi totali)
   f1: { numEv: 25, grani: 48,  amp: 0.28 },
   f2: { numEv: 35, grani: 128, amp: 0.14 },
   f3: { numEv: 55, grani: 24,  amp: 0.10 },
@@ -181,7 +465,7 @@ function gaussian(mu, sigma) {
 }
 
 // ============================================================
-// DEFINIZIONE STATI TIMBRICI
+// DEFINIZIONE STATI TIMBRICI LATO A
 // ============================================================
 
 function definizioneStato(famiglia) {
@@ -393,10 +677,9 @@ function profiloGrano(profiloMateriale, frequenze, centro, rate, rq) {
 }
 
 // ============================================================
-// SIMULAZIONI DELLE TRE FASI EVOLUTIVE
+// SIMULAZIONI DELLE TRE FASI EVOLUTIVE LATO A
 // ============================================================
 
-// F1: Calcolo con supporto completo a CFG.f1.grani
 async function eseguiF1(materiali) {
   output.textContent = 'F1'
   const N = materiali.length
@@ -433,7 +716,6 @@ async function eseguiF1(materiali) {
   return { profili: profiliF1.map(normalizza), eventi }
 }
 
-// F2: Clustering guidato da P1 con supporto a CFG.f2.grani
 async function eseguiF2(materiali, profiliF1, P1) {
   output.textContent = 'F2'
   const N = materiali.length
@@ -470,7 +752,6 @@ async function eseguiF2(materiali, profiliF1, P1) {
   return { profili: profiliF2.map(normalizza), eventi }
 }
 
-// F3: Sintesi cesellata finale guidata da P2
 async function eseguiF3(materiali, profiliF2, P2) {
   output.textContent = 'F3'
   const clouds = []
@@ -520,36 +801,34 @@ async function eseguiF3(materiali, profiliF2, P2) {
 }
 
 // ============================================================
-// GENERATORI AUDIO DELLE 3 FASI
+// GENERATORI AUDIO DELLE 3 FASI LATO A
 // ============================================================
 
-// FASE 1: Pulviscolo asincrono (grani sparsi nel tempo)
 function costruisciPatternF1(F1) {
   const normGain = CFG.f1.amp / Math.sqrt(Math.max(1, CFG.f1.grani))
   return F1.eventi.map(ev => {
     const microGrani = ev.grani.map(g => {
-      const onset = Math.random() * 0.85 // Distribuisce nel tempo
+      const onset = Math.random() * 0.85
       return s('m' + g.materiale)
         .speed(g.rate)
         .attack(0.02)
-        .release(clipValue(g.durata * 0.6, 0.08, 0.40))
+        .release(clipValue(g.durata * 0.5, 0.05, 0.35))
         .bpf(g.banda)
         .bpq(clipValue(1 / Math.max(g.rq, 0.05), 1, 12))
         .pan((g.pan + 1) / 2)
         .gain(normGain)
-        .room(0.20)
-        .late(onset) // <-- Onset asincrono
+        .room(0.15)
+        .late(onset)
     })
     return stack(...microGrani)
   })
 }
 
-// FASE 2: Tempesta densa (128 grani sovrapposti continuamente)
 function costruisciPatternF2(F2) {
   const normGain = CFG.f2.amp / Math.sqrt(Math.max(1, CFG.f2.grani))
   return F2.eventi.map(ev => {
     const microGrani = ev.grani.map(g => {
-      const onset = Math.random() * 0.95 // Sparpagliamento continuo
+      const onset = Math.random() * 0.95
       return s('m' + g.materiale)
         .speed(g.rate)
         .attack(0.015)
@@ -559,13 +838,12 @@ function costruisciPatternF2(F2) {
         .pan((g.pan + 1) / 2)
         .gain(normGain)
         .room(0.35)
-        .late(onset) // <-- Sovrapposizione massiva
+        .late(onset)
     })
     return stack(...microGrani)
   })
 }
 
-// FASE 3: Sintesi cesellata (micro-slicing asincrono con code)
 function costruisciPatternF3(F3) {
   return F3.clouds.map(cloud => {
     const microGrani = cloud.grani.map(g => {
@@ -574,7 +852,7 @@ function costruisciPatternF3(F3) {
         .slice(g.chop, String(g.sliceIndex))
         .speed(g.rate)
         .attack(g.attack)
-        .release(g.release + 0.15) // Coda prolungata per overlap
+        .release(g.release + 0.15)
         .bpf(g.frequenza)
         .bpq(g.bpq)
         .pan(g.pan)
@@ -651,7 +929,7 @@ async function analizzaMateriale(materiale) {
 }
 
 // ============================================================
-// TIMER DELLE FASI DINAMICHE & STOP A DURATA FISSATA
+// MONITORAGGIO TEMPI E DURATE FISSE
 // ============================================================
 
 let faseTimerInterval = null
@@ -662,11 +940,10 @@ function fermaComposizioneAutomatica() {
   if (faseTimerInterval) clearInterval(faseTimerInterval)
   if (stopTimeoutId) clearTimeout(stopTimeoutId)
   tapeWindow?.classList.remove('is-playing')
-  if (sideBadge) sideBadge.textContent = 'SIDE ?'
   output.textContent = 'FINE // TOCCA RIGENERA'
 }
 
-function avviaMonitoraggioFasi(durataF1Sec, durataF2Sec, durataTotaleSec) {
+function avviaMonitoraggioLatoA(durF1Sec, durF2Sec, durTotaleSec) {
   if (faseTimerInterval) clearInterval(faseTimerInterval)
   if (stopTimeoutId) clearTimeout(stopTimeoutId)
 
@@ -675,43 +952,73 @@ function avviaMonitoraggioFasi(durataF1Sec, durataF2Sec, durataTotaleSec) {
   faseTimerInterval = setInterval(() => {
     const elapsedSec = (Date.now() - startTime) / 1000
 
-    if (elapsedSec < durataF1Sec) {
+    if (elapsedSec < durF1Sec) {
       if (sideBadge) sideBadge.textContent = 'FASE 1'
       output.textContent = `F1(${elapsedSec.toFixed(1)}s)`
-    } else if (elapsedSec < durataF1Sec + durataF2Sec) {
+    } else if (elapsedSec < durF1Sec + durF2Sec) {
       if (sideBadge) sideBadge.textContent = 'FASE 2'
       output.textContent = `F2(${elapsedSec.toFixed(1)}s)`
-    } else if (elapsedSec < durataTotaleSec) {
-      if (sideBadge) sideBadge.textContent = 'F3'
+    } else if (elapsedSec < durTotaleSec) {
+      if (sideBadge) sideBadge.textContent = 'FASE 3'
       output.textContent = `F3(${elapsedSec.toFixed(1)}s)`
     } else {
       fermaComposizioneAutomatica()
     }
   }, 250)
 
-  // Timer di precisione per lo stop del motore audio
   stopTimeoutId = setTimeout(() => {
     fermaComposizioneAutomatica()
-  }, durataTotaleSec * 1000)
+  }, durTotaleSec * 1000)
+}
+
+function avviaMonitoraggioLatoB(durTotaleSec) {
+  if (faseTimerInterval) clearInterval(faseTimerInterval)
+  if (stopTimeoutId) clearTimeout(stopTimeoutId)
+
+  const startTime = Date.now()
+
+  faseTimerInterval = setInterval(() => {
+    const elapsedSec = (Date.now() - startTime) / 1000
+
+    if (elapsedSec < durTotaleSec) {
+      if (sideBadge) sideBadge.textContent = 'SIDE B'
+      output.textContent = `${nomeWavAttuale} (${elapsedSec.toFixed(1)}s)`
+    } else {
+      fermaComposizioneAutomatica()
+    }
+  }, 250)
+
+  stopTimeoutId = setTimeout(() => {
+    fermaComposizioneAutomatica()
+  }, durTotaleSec * 1000)
 }
 
 // ============================================================
-// PLAYBACK CONCATENATO
+// PLAYBACK LATO A (MARKOVIANO)
 // ============================================================
 
-function riproduciComposizione() {
+async function riproduciLatoA() {
   if (!globalThis.sistemaCompleto) {
     output.textContent = 'ERRORE: Genera prima la composizione.'
     return
   }
 
+  // Risveglia il contesto audio di Strudel se sospeso
+  const strudelCtx = getAudioContext()
+  if (strudelCtx && strudelCtx.state === 'suspended') await strudelCtx.resume()
+  if (sysAudioContext && sysAudioContext.state === 'suspended') await sysAudioContext.resume()
+  if (analyserNode?.context?.state === 'suspended') await analyserNode.context.resume()
+
   const sistema = globalThis.sistemaCompleto
-  samples(sistema.sampleMap)
+
+  // Registra ESCLUSIVAMENTE la mappa dei campioni del Lato A (senza sovrascrivere o 404)
+  await samples(sistema.sampleMap)
 
   const composizione = cat(...sistema.tuttiIPattern)
   const drone = costruisciDrone(sistema)
 
   hush()
+  await new Promise(r => setTimeout(r, 20))
 
   const layerComposizione = composizione
     .cps(CFG.compositionCps)
@@ -728,16 +1035,47 @@ function riproduciComposizione() {
 
   tapeWindow?.classList.add('is-playing')
 
-  // Calcolo delle durate temporali
   const durF1 = CFG.f1.numEv / CFG.compositionCps
   const durF2 = CFG.f2.numEv / CFG.compositionCps
   const durTotale = (CFG.f1.numEv + CFG.f2.numEv + CFG.f3.numEv) / CFG.compositionCps
 
-  avviaMonitoraggioFasi(durF1, durF2, durTotale)
+  avviaMonitoraggioLatoA(durF1, durF2, durTotale)
 }
 
 // ============================================================
-// ESECUZIONE DEL SISTEMA COMPLETO
+// PLAYBACK LATO B (GENERI NATIVI SENZA TONALITÀ VISIBILE)
+// ============================================================
+
+async function riproduciLatoB() {
+  if (!genereBSelezionato) {
+    genereBSelezionato = GENERI_LATO_B[Math.floor(Math.random() * GENERI_LATO_B.length)]
+  }
+
+  const strudelCtx = getAudioContext()
+  if (strudelCtx && strudelCtx.state === 'suspended') await strudelCtx.resume()
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext
+  if (!sysAudioContext) sysAudioContext = new AudioContextClass()
+  if (sysAudioContext.state === 'suspended') await sysAudioContext.resume()
+  if (analyserNode?.context?.state === 'suspended') await analyserNode.context.resume()
+
+  hush()
+  await new Promise(r => setTimeout(r, 20))
+
+  // Pattern musicale eseguito nella tonalità nascosta (Zero errori di scale)
+  const pattern = genereBSelezionato.creaPattern(tonalitaAttuale, scalaAttuale)
+    .cps(genereBSelezionato.cps)
+    .gain(0.85)
+    .room(0.35)
+    .orbit(1)
+
+  pattern.play()
+
+  tapeWindow?.classList.add('is-playing')
+  avviaMonitoraggioLatoB(durataLatoBSec)
+}
+
+// ============================================================
+// ESECUZIONE E CALIBRAZIONE LATO A
 // ============================================================
 
 async function eseguiSistema() {
@@ -752,6 +1090,10 @@ async function eseguiSistema() {
     }
     if (sysAudioContext.state === 'suspended') {
       await sysAudioContext.resume()
+    }
+    const strudelCtx = getAudioContext()
+    if (strudelCtx && strudelCtx.state === 'suspended') {
+      await strudelCtx.resume()
     }
     if (analyserNode?.context?.state === 'suspended') {
       await analyserNode.context.resume()
@@ -806,7 +1148,7 @@ async function eseguiSistema() {
       tuttiIPattern
     }
 
-    riproduciComposizione()
+    await riproduciLatoA()
 
     runButton.disabled = false
     playButton.disabled = false
@@ -822,18 +1164,100 @@ async function eseguiSistema() {
 }
 
 // ============================================================
-// EVENT LISTENERS
+// REGIA ROTAZIONE CASSETTA 3D (LATO A <-> B)
 // ============================================================
 
-playButton.addEventListener('click', riproduciComposizione)
+function giraCassetta() {
+  hush()
+  tapeWindow?.classList.remove('is-playing')
+  if (faseTimerInterval) clearInterval(faseTimerInterval)
+  if (stopTimeoutId) clearTimeout(stopTimeoutId)
+
+  cassetteEl?.classList.add('flipping')
+
+  setTimeout(() => {
+    if (currentSide === 'A') {
+      currentSide = 'B'
+
+      // Estrae stile, tonalità segreta e nome file .wav hacker
+      genereBSelezionato = GENERI_LATO_B[Math.floor(Math.random() * GENERI_LATO_B.length)]
+      tonalitaAttuale = estraiTonalita()
+      scalaAttuale = genereBSelezionato.scaleCompatibili[Math.floor(Math.random() * genereBSelezionato.scaleCompatibili.length)]
+      nomeWavAttuale = generaNomeWav()
+
+      cassetteEl?.classList.add('side-b')
+      if (sideBadge) sideBadge.textContent = 'SIDE B'
+      if (formatBadge) formatBadge.textContent = 'HEX / 32-BIT'
+      if (speedBadge) speedBadge.textContent = genereBSelezionato.tempo
+      if (tapeSubtitle) tapeSubtitle.textContent = nomeWavAttuale
+      if (flipButton) flipButton.innerHTML = '<span class="icon">⟲</span> GIRA CASSETTA [LATO A]'
+
+      output.textContent = `${nomeWavAttuale} // PRONTO`
+    } else {
+      currentSide = 'A'
+
+      cassetteEl?.classList.remove('side-b')
+      if (sideBadge) sideBadge.textContent = 'SIDE A'
+      if (formatBadge) formatBadge.textContent = 'STEREO / CrO₂'
+      if (speedBadge) speedBadge.textContent = '1.10 CPS'
+      if (tapeSubtitle) tapeSubtitle.textContent = 'WHAAAAAAAAAAAAAHHHHHHHHH'
+      if (flipButton) flipButton.innerHTML = '<span class="icon">⟲</span> GIRA CASSETTA [LATO B]'
+
+      output.textContent = "SYSTEM READY // TOCCA 'PLAY' PER GENERARE IL NASTRO."
+    }
+  }, 325)
+
+  setTimeout(() => {
+    cassetteEl?.classList.remove('flipping')
+  }, 650)
+}
+
+// ============================================================
+// EVENT LISTENERS DEL DECK
+// ============================================================
+
+runButton.addEventListener('click', () => {
+  if (currentSide === 'A') {
+    if (globalThis.sistemaCompleto) {
+      riproduciLatoA()
+    } else {
+      eseguiSistema()
+    }
+  } else {
+    riproduciLatoB()
+  }
+})
+
+playButton.addEventListener('click', () => {
+  if (currentSide === 'A') {
+    eseguiSistema()
+  } else {
+    // Sul Lato B, 'RIGENERA' estrae un nuovo stile, una nuova tonalità e un nuovo dump alfanumerico .wav
+    const altriGeneri = GENERI_LATO_B.filter(g => g.id !== genereBSelezionato?.id)
+    genereBSelezionato = altriGeneri[Math.floor(Math.random() * altriGeneri.length)]
+    tonalitaAttuale = estraiTonalita()
+    scalaAttuale = genereBSelezionato.scaleCompatibili[Math.floor(Math.random() * genereBSelezionato.scaleCompatibili.length)]
+    nomeWavAttuale = generaNomeWav()
+
+    if (speedBadge) speedBadge.textContent = genereBSelezionato.tempo
+    if (tapeSubtitle) tapeSubtitle.textContent = nomeWavAttuale
+
+    riproduciLatoB()
+  }
+})
 
 stopButton.addEventListener('click', () => {
   hush()
   tapeWindow?.classList.remove('is-playing')
   if (faseTimerInterval) clearInterval(faseTimerInterval)
   if (stopTimeoutId) clearTimeout(stopTimeoutId)
-  if (sideBadge) sideBadge.textContent = 'SIDE ?'
+
+  if (currentSide === 'A') {
+    if (sideBadge) sideBadge.textContent = 'SIDE A'
+  } else {
+    if (sideBadge) sideBadge.textContent = 'SIDE B'
+  }
   output.textContent = 'STOP // NASTRO FERMATO'
 })
 
-runButton.addEventListener('click', eseguiSistema)
+flipButton.addEventListener('click', giraCassetta)

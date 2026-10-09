@@ -31,9 +31,6 @@ body {
   overflow: hidden;
 }
 
-/* ============================================================
-   CANVAS FLUIDO IN BACKGROUND
-============================================================ */
 #liquid-canvas {
   position: fixed;
   top: 0;
@@ -51,10 +48,11 @@ body {
   width: 100%;
   max-width: 520px;
   margin: 0 auto;
+  perspective: 1200px;
 }
 
 /* ============================================================
-   CHASSIS DELLA CASSETTA
+   CHASSIS CASSETTA & TRASFORMAZIONE 3D LATO A / B
 ============================================================ */
 .cassette {
   position: relative;
@@ -66,6 +64,36 @@ body {
     0 25px 60px rgba(0, 0, 0, 0.95),
     0 0 40px rgba(10, 26, 20, 0.4),
     inset 0 1px 1px rgba(255, 255, 255, 0.12);
+  transform-style: preserve-3d;
+  transition: border-color 0.4s ease, box-shadow 0.4s ease;
+}
+
+/* Animazione di rotazione 3D del nastro */
+@keyframes flipTape {
+  0%   { transform: rotateY(0deg) scale(1); }
+  50%  { transform: rotateY(90deg) scale(1.05); }
+  100% { transform: rotateY(0deg) scale(1); }
+}
+
+.cassette.flipping {
+  animation: flipTape 0.65s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Stile estetico specifico LATO B */
+.cassette.side-b {
+  border-color: #1e3a5f;
+  box-shadow: 
+    0 25px 60px rgba(0, 0, 0, 0.95),
+    0 0 40px rgba(30, 80, 140, 0.35),
+    inset 0 1px 1px rgba(255, 255, 255, 0.12);
+}
+
+.cassette.side-b .tape-label {
+  border-left-color: #2b6cb0;
+}
+
+.cassette.side-b .side-badge {
+  background: #2b6cb0;
 }
 
 /* Viti metalliche decorative */
@@ -104,6 +132,7 @@ body {
   padding: 14px 14px 18px 14px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
   border-left: 6px solid var(--label-accent);
+  transition: border-left-color 0.4s ease;
 }
 
 .label-header {
@@ -123,6 +152,7 @@ body {
   color: #fff;
   padding: 2px 6px;
   border-radius: 3px;
+  transition: background 0.4s ease;
 }
 
 .title-section {
@@ -144,6 +174,7 @@ body {
   font-size: 0.6rem;
   letter-spacing: 1px;
   color: #555;
+  transition: color 0.3s ease;
 }
 
 /* ============================================================
@@ -159,7 +190,6 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-/* Bobine fisiche con dentini */
 .reel-hole {
   width: 36px;
   height: 36px;
@@ -183,15 +213,8 @@ body {
   border-radius: 1px;
 }
 
-.reel-hole::before {
-  width: 4px;
-  height: 24px;
-}
-
-.reel-hole::after {
-  width: 24px;
-  height: 4px;
-}
+.reel-hole::before { width: 4px; height: 24px; }
+.reel-hole::after  { width: 24px; height: 4px; }
 
 .reel-hole .sprocket {
   width: 14px;
@@ -330,6 +353,24 @@ body {
   color: #ff6b6b;
 }
 
+/* Pulsante dedicato FLIP (a tutta larghezza) */
+.btn-flip {
+  grid-column: 1 / -1;
+  background: #14171d;
+  border: 1px solid #282f3a;
+  color: #abb2bf;
+  font-size: 0.68rem;
+  padding: 10px;
+  margin-top: 2px;
+  box-shadow: 0 2px 0 #0c0e12;
+}
+
+.btn-flip:hover:not(:disabled) {
+  background: #1f2530;
+  color: #fff;
+  border-color: #3b4557;
+}
+
 .tape-footer {
   margin-top: 14px;
   display: flex;
@@ -344,7 +385,7 @@ body {
 ============================================================ */
 @keyframes spinReel {
   from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  to   { transform: rotate(360deg); }
 }
 
 .tape-window.is-playing .reel-hole {
