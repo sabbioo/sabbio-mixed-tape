@@ -1,150 +1,151 @@
 // ============================================================
-// BACKGROUND: SHADER FLUIDO MELMOSO REATTIVO (DOMAIN WARP)
+// BACKGROUND: WATERFALL SPETTROGRAMMA 3D AUDIO-REATTIVO
+// Stile CP 1919 / Unknown Pleasures con LERP colore tra Side A e B
 // ============================================================
 
-export function initLiquidBackground(canvasId = 'liquid-canvas') {
+export function initLiquidBackground(canvasId = 'liquid-canvas', options = {}) {
   const canvas = document.getElementById(canvasId)
   if (!canvas) return
 
-  const gl = canvas.getContext('webgl', { powerPreference: 'low-power', antialias: false })
-  if (!gl) return
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return
 
-  const vsSource = `
-    attribute vec2 a_pos;
-    void main() {
-      gl_Position = vec4(a_pos, 0.0, 1.0);
-    }
-  `
-
-  const fsSource = `
-    precision mediump float;
-    uniform vec2 u_res;
-    uniform float u_time;
-
-    vec2 hash(vec2 p) {
-      p = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)));
-      return -1.0 + 2.0 * fract(sin(p) * 43758.5453123);
-    }
-
-    float noise(vec2 p) {
-      vec2 i = floor(p);
-      vec2 f = fract(p);
-      vec2 u = f * f * (3.0 - 2.0 * f);
-
-      return mix(
-        mix(dot(hash(i + vec2(0.0, 0.0)), f - vec2(0.0, 0.0)),
-            dot(hash(i + vec2(1.0, 0.0)), f - vec2(1.0, 0.0)), u.x),
-        mix(dot(hash(i + vec2(0.0, 1.0)), f - vec2(0.0, 1.0)),
-            dot(hash(i + vec2(1.0, 1.0)), f - vec2(1.0, 1.0)), u.x),
-        u.y
-      );
-    }
-
-    float fbm(vec2 p) {
-      float v = 0.0;
-      float a = 0.55;
-      mat2 rot = mat2(0.8, -0.6, 0.6, 0.8);
-      for (int i = 0; i < 4; i++) {
-        v += a * noise(p);
-        p = rot * p * 2.15;
-        a *= 0.48;
-      }
-      return v;
-    }
-
-    void main() {
-      vec2 p = (gl_FragCoord.xy * 2.0 - u_res.xy) / min(u_res.x, u_res.y);
-
-      // Velocità del flusso vischioso
-      float t = u_time * 0.12;
-
-      // Matrici di rotazione per far girare e rimescolare i vortici
-      mat2 r1 = mat2(cos(t * 0.25), -sin(t * 0.25), sin(t * 0.25), cos(t * 0.25));
-      mat2 r2 = mat2(cos(t * 0.18), sin(t * 0.18), -sin(t * 0.18), cos(t * 0.18));
-
-      // 1° livello di deformazione (massa primaria)
-      vec2 q = vec2(
-        fbm((r1 * p) * 1.1 + vec2(0.0, 1.2) + t * 0.3),
-        fbm((r2 * p) * 1.1 + vec2(4.2, 2.7) - t * 0.25)
-      );
-
-      // 2° livello di deformazione (pieghe e striature)
-      vec2 r = vec2(
-        fbm(p * 1.4 + 3.2 * q + vec2(1.7, 9.2) + t * 0.35),
-        fbm(p * 1.4 + 3.2 * q + vec2(8.3, 2.8) - t * 0.4)
-      );
-
-      // Risultante dell'interferenza melmosa
-      float f = fbm(p * 1.3 + 3.5 * r);
-
-      // Palette cromatica ad alto contrasto organico
-      vec3 colDeep    = vec3(0.04, 0.05, 0.06);  // Fondo abisso/petrolio
-      vec3 colSlime   = vec3(0.08, 0.28, 0.18);  // Verde muschio melmoso vivo
-      vec3 colAmber   = vec3(0.36, 0.24, 0.10);  // Oro antico / resina bronzea
-      vec3 colHighlight = vec3(0.45, 0.55, 0.40); // Cresta oleosa bagnata
-
-      // Missaggio degli strati di colore in base alla densità
-      vec3 col = mix(colDeep, colAmber, clamp(f * 1.6, 0.0, 1.0));
-      col = mix(col, colSlime, clamp(length(q) * 0.9, 0.0, 1.0));
-      col = mix(col, colHighlight, clamp(pow(r.y, 2.0) * 1.4, 0.0, 1.0));
-
-      // Bagliori lucidi di rifrazione superficiale
-      float sheen = pow(clamp(f * 1.3, 0.0, 1.0), 3.5) * 0.65;
-      col += vec3(sheen * 0.8, sheen * 1.0, sheen * 0.7);
-
-      // Vignettatura morbida per dare profondità volumetrica
-      float vig = 1.0 - smoothstep(0.5, 1.8, length(p * 0.8));
-      col *= vig;
-
-      gl_FragColor = vec4(col, 1.0);
-    }
-  `
-
-  function createShader(type, source) {
-    const s = gl.createShader(type)
-    gl.shaderSource(s, source)
-    gl.compileShader(s)
-    return s
-  }
-
-  const program = gl.createProgram()
-  gl.attachShader(program, createShader(gl.VERTEX_SHADER, vsSource))
-  gl.attachShader(program, createShader(gl.FRAGMENT_SHADER, fsSource))
-  gl.linkProgram(program)
-  gl.useProgram(program)
-
-  const buffer = gl.createBuffer()
-  gl.bindBuffer(gl.ARRAY_BUFFER, buffer)
-  gl.bufferData(
-    gl.ARRAY_BUFFER,
-    new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]),
-    gl.STATIC_DRAW
-  )
-
-  const aPos = gl.getAttribLocation(program, 'a_pos')
-  gl.enableVertexAttribArray(aPos)
-  gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0)
-
-  const uRes = gl.getUniformLocation(program, 'u_res')
-  const uTime = gl.getUniformLocation(program, 'u_time')
+  let width = 0
+  let height = 0
 
   function resize() {
-    const scale = Math.min(window.devicePixelRatio || 1, 1.5) * 0.75
-    canvas.width = Math.floor(window.innerWidth * scale)
-    canvas.height = Math.floor(window.innerHeight * scale)
-    gl.viewport(0, 0, canvas.width, canvas.height)
+    width = window.innerWidth
+    height = window.innerHeight
+    canvas.width = width
+    canvas.height = height
   }
-
   window.addEventListener('resize', resize)
   resize()
 
-  const startTime = performance.now()
-  function render() {
-    const t = (performance.now() - startTime) * 0.001
-    gl.uniform2f(uRes, canvas.width, canvas.height)
-    gl.uniform1f(uTime, t)
-    gl.drawArrays(gl.TRIANGLES, 0, 6)
-    requestAnimationFrame(render)
+  const NUM_LINES = 42
+  const POINTS_PER_LINE = 64
+
+  // Buffer storico delle sezioni spettrali
+  const history = Array.from({ length: NUM_LINES }, () => new Float32Array(POINTS_PER_LINE))
+
+  // Palette colori
+  const COLOR_SIDE_A = { r: 212, g: 163, b: 115 } // Oro / ambra ossido
+  const COLOR_SIDE_B = { r: 40,  g: 150, b: 255 } // Blu cobalto / ciano elettrico
+  const currentColor = { ...COLOR_SIDE_A }
+
+  let lastSampleTime = 0
+  const sampleIntervalMs = 45
+
+  function draw(now) {
+    requestAnimationFrame(draw)
+
+    let analyser = null
+    try {
+      analyser = options.getAnalyser ? options.getAnalyser() : null
+    } catch (_) {}
+
+    let currentSide = 'A'
+    try {
+      currentSide = options.getSide ? options.getSide() : 'A'
+    } catch (_) {}
+
+    // 1. Interpolazione colore fluida tra Lato A e Lato B
+    const targetColor = currentSide === 'B' ? COLOR_SIDE_B : COLOR_SIDE_A
+    currentColor.r += (targetColor.r - currentColor.r) * 0.05
+    currentColor.g += (targetColor.g - currentColor.g) * 0.05
+    currentColor.b += (targetColor.b - currentColor.b) * 0.05
+
+    // 2. Acquisizione e avanzamento dello spettro audio
+    if (now - lastSampleTime > sampleIntervalMs) {
+      lastSampleTime = now
+
+      const newSlice = new Float32Array(POINTS_PER_LINE)
+
+      if (analyser) {
+        const binCount = analyser.frequencyBinCount
+        const freqData = new Uint8Array(binCount)
+        analyser.getByteFrequencyData(freqData)
+
+        for (let j = 0; j < POINTS_PER_LINE; j++) {
+          const p = j / (POINTS_PER_LINE - 1)
+          const bell = Math.exp(-Math.pow((p - 0.5) / 0.22, 2))
+
+          const freqIndex = Math.min(
+            binCount - 1,
+            Math.floor(Math.pow(p, 1.8) * (binCount * 0.75))
+          )
+          const energy = freqData[freqIndex] / 255.0
+
+          const idleWave = Math.sin(p * 12.0 + now * 0.002) * 0.04
+          newSlice[j] = Math.max(0, (energy * 1.45 + idleWave) * bell)
+        }
+      } else {
+        // Fruscio a nastro fermo
+        for (let j = 0; j < POINTS_PER_LINE; j++) {
+          const p = j / (POINTS_PER_LINE - 1)
+          const bell = Math.exp(-Math.pow((p - 0.5) / 0.22, 2))
+          newSlice[j] = Math.max(0, (Math.sin(p * 8.0 + now * 0.0015) * 0.06 + 0.02) * bell)
+        }
+      }
+
+      history.unshift(newSlice)
+      history.pop()
+    }
+
+    // 3. Rendering grafico a schermo
+    ctx.fillStyle = '#040506'
+    ctx.fillRect(0, 0, width, height)
+
+    const startY = height * 0.12
+    const endY = height * 0.94
+    const totalSpanY = endY - startY
+    const stepY = totalSpanY / NUM_LINES
+
+    for (let i = 0; i < NUM_LINES; i++) {
+      const lineProg = i / (NUM_LINES - 1)
+      const baseY = startY + i * stepY
+
+      const marginX = width * (0.16 - lineProg * 0.07)
+      const spanX = width - marginX * 2
+      const maxAltitude = 35 + lineProg * 85
+
+      const sliceData = history[i]
+      const coords = []
+
+      for (let j = 0; j < POINTS_PER_LINE; j++) {
+        const p = j / (POINTS_PER_LINE - 1)
+        const currentX = marginX + p * spanX
+        const altitude = sliceData[j] * maxAltitude
+        const currentY = baseY - altitude
+
+        coords.push({ x: currentX, y: currentY })
+      }
+
+      // Maschera occlusiva nera sotto la linea (volume 3D)
+      ctx.beginPath()
+      ctx.moveTo(marginX, baseY)
+      for (let j = 0; j < coords.length; j++) {
+        ctx.lineTo(coords[j].x, coords[j].y)
+      }
+      ctx.lineTo(width - marginX, height)
+      ctx.lineTo(marginX, height)
+      ctx.closePath()
+      ctx.fillStyle = '#040506'
+      ctx.fill()
+
+      // Cresta spettrale
+      ctx.beginPath()
+      for (let j = 0; j < coords.length; j++) {
+        if (j === 0) ctx.moveTo(coords[j].x, coords[j].y)
+        else ctx.lineTo(coords[j].x, coords[j].y)
+      }
+
+      const alpha = 0.20 + lineProg * 0.75
+      ctx.strokeStyle = `rgba(${Math.round(currentColor.r)}, ${Math.round(currentColor.g)}, ${Math.round(currentColor.b)}, ${alpha})`
+      ctx.lineWidth = 1.35
+      ctx.stroke()
+    }
   }
-  render()
+
+  draw(performance.now())
 }

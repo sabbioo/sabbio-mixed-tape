@@ -3,7 +3,12 @@ import './style.css'
 import { initLiquidBackground } from './liquid.js'
 
 // Inizializza lo sfondo fluido melmoso
-initLiquidBackground('liquid-canvas')
+
+// Inizializza lo sfondo waterfall collegato a motore audio e lato cassetta
+initLiquidBackground('liquid-canvas', {
+  getAnalyser: () => analyserNode,
+  getSide: () => currentSide
+})
 
 // ============================================================
 // HOOK WEBAUDIO: INTERCETTAZIONE DIRETTA DEL MASTER STRUDEL
@@ -53,8 +58,14 @@ let currentSide = 'A' // 'A' o 'B'
 let genereBSelezionato = null
 let tonalitaAttuale = 'C'
 let scalaAttuale = 'dorian'
-let nomeWavAttuale = '0x08048_raw_0x1A4F.wav'
+let nomeWavAttuale = '.wav'
 let durataLatoBSec = 75.0
+
+// Inizializza lo sfondo waterfall collegato a motore audio e lato cassetta
+initLiquidBackground('liquid-canvas', {
+  getAnalyser: () => analyserNode,
+  getSide: () => currentSide
+})
 
 // ============================================================
 // NOMI
